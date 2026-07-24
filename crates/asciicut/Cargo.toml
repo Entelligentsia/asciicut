@@ -6,6 +6,12 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
+# Distribution metadata (crates.io · cargo-binstall · cargo-dist · npm wrapper).
+homepage = "https://github.com/Entelligentsia/asciicut"
+documentation = "https://github.com/Entelligentsia/asciicut#readme"
+readme = "../../README.md"
+keywords = ["asciinema", "terminal", "recording", "editor", "cast"]
+categories = ["command-line-utilities", "multimedia::video"]
 
 # lib + thin bin split: the pure `compose_project` orchestration lives in the
 # library so it is integration-testable without spawning a subprocess, while

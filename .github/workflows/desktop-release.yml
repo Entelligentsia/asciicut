@@ -117,21 +117,24 @@ jobs:
         working-directory: web
 
       # SHA-256 over this leg's installers, by basename so `sha256sum -c
-      # SHA256SUMS.txt` verifies against the flat release download layout.
+      # SHA256SUMS-<OS>.txt` verifies against the flat release download layout.
+      # Per-OS filename (runner.os = Linux/macOS/Windows) so the three matrix
+      # legs don't clobber one shared file when attaching to the release.
       - name: Checksums (SHA-256)
         shell: bash
         working-directory: crates/asciicut-desktop/target/release/bundle
         run: |
           shopt -s nullglob
-          : > SHA256SUMS.txt
+          sums="SHA256SUMS-${{ runner.os }}.txt"
+          : > "$sums"
           for f in deb/*.deb appimage/*.AppImage dmg/*.dmg msi/*.msi nsis/*.exe; do
-            sha256sum "$f" | awk -v b="$(basename "$f")" '{print $1"  "b}' >> SHA256SUMS.txt
+            sha256sum "$f" | awk -v b="$(basename "$f")" '{print $1"  "b}' >> "$sums"
           done
-          if [ ! -s SHA256SUMS.txt ]; then
+          if [ ! -s "$sums" ]; then
             echo "no installers found to checksum" >&2
             exit 1
           fi
-          cat SHA256SUMS.txt
+          cat "$sums"
 
       # Free, keyless supply-chain provenance: cryptographically ties each
       # installer to this commit + workflow run (verify with `gh attestation
@@ -139,7 +142,7 @@ jobs:
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v4
         with:
-          subject-checksums: crates/asciicut-desktop/target/release/bundle/SHA256SUMS.txt
+          subject-checksums: crates/asciicut-desktop/target/release/bundle/SHA256SUMS-${{ runner.os }}.txt
 
       - name: Upload installer artifact(s)
         uses: actions/upload-artifact@v7
@@ -152,7 +155,7 @@ jobs:
             crates/asciicut-desktop/target/release/bundle/macos/*.app
             crates/asciicut-desktop/target/release/bundle/msi/*.msi
             crates/asciicut-desktop/target/release/bundle/nsis/*.exe
-            crates/asciicut-desktop/target/release/bundle/SHA256SUMS.txt
+            crates/asciicut-desktop/target/release/bundle/SHA256SUMS-*.txt
           if-no-files-found: ignore
 
       - name: Attach installers to the GitHub Release
@@ -171,7 +174,7 @@ jobs:
             crates/asciicut-desktop/target/release/bundle/dmg/*.dmg
             crates/asciicut-desktop/target/release/bundle/msi/*.msi
             crates/asciicut-desktop/target/release/bundle/nsis/*.exe
-            crates/asciicut-desktop/target/release/bundle/SHA256SUMS.txt
+            crates/asciicut-desktop/target/release/bundle/SHA256SUMS-*.txt
           )
           if [ ${#files[@]} -eq 0 ]; then
             echo "no installer files found to attach" >&2
