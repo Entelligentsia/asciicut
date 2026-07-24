@@ -1382,10 +1382,11 @@ kb,
 /* Export loader — the render pipeline is the one genuinely long op (§4). */
 .export-mascot {
   display: block;
-  width: 84px;
+  width: 104px;
   height: auto;
   object-fit: contain;
   margin: 0 auto 12px;
+  /* ui_splice_operator.gif is self-animating; no CSS animation needed. */
 }
 
 .wel-brand {

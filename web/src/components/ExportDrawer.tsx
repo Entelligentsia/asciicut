@@ -250,8 +250,8 @@ export const ExportDrawer: Component<ExportDrawerProps> = (props) => {
               <div class="progress-wrap" data-testid="editor-export-progress">
                 <Show when={busy() && stage() !== "done" && stage() !== "error"}>
                   <img
-                    class="export-mascot animate-float"
-                    src="/assets/ui_loading_transparent.png"
+                    class="export-mascot"
+                    src="/assets/ui_splice_operator.gif"
                     alt=""
                   />
                 </Show>

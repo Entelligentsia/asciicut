@@ -49,11 +49,14 @@ samples/*.composed.cast
 # Tauri desktop app icons ARE committed (bundle.icon in tauri.conf.json needs
 # them for `tauri build`) — re-include them after the blanket `*.png` ignore.
 !crates/asciicut-desktop/icons/*.png
-# Nibbles brand assets (logomark, mascot, empty/loading illustrations) ARE
-# committed — the SPA loads them at runtime from /assets, and `assets/` is the
-# source of record. Re-include after the blanket `*.png` ignore.
+# Nibbles brand assets (logomark, mascot, empty/loading illustrations, animated
+# splice-operator gif) ARE committed — the SPA loads them at runtime from
+# /assets, and `assets/` is the source of record. Re-include after the blanket
+# `*.png`/`*.gif` ignores.
 !assets/*.png
 !web/public/assets/*.png
+!assets/*.gif
+!web/public/assets/*.gif
 
 # ─────────────────────────────────────────────────────────────────────────────
 # OS / editor
