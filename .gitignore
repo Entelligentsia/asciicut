@@ -118,7 +118,6 @@ __pycache__/
 /docs/*
 !/docs/index.html
 !/docs/style.css
-!/docs/styles.css
 !/docs/script.js
 !/docs/assets/
 !/docs/assets/**
