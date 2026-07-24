@@ -1,0 +1,7 @@
+{"version": 3, "timestamp": 1700000000, "term": {"cols": 100, "rows": 30, "theme": {"fg": "#c0caf5", "bg": "#1a1b26"}}, "env": {"SHELL": "/bin/zsh", "TERM": "xterm-256color"}}
+# synthetic v3 fixture: interval-timed o/r/m events for exact-time assertions
+[0.5, "o", "hello "]
+[0.25, "o", "world\r\n"]
+[1.0, "r", "120x40"]
+[0.75, "m", "chapter one"]
+[0.5, "o", "done\r\n"]

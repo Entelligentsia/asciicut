@@ -1,0 +1,21 @@
+[package]
+name = "asciicut-bridge"
+description = "Transport-agnostic asciicut command bridge — the shared frame/thumbs/activity/compose/project/save operation layer both asciicut-server (axum) and asciicut-desktop (Tauri) call (CASTCU-S2-T02)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+# Deliberately minimal: `asciicut-core` + `serde`/`serde_json` only. No `axum`,
+# `tokio`, or `rust-embed` — this crate must stay transport-agnostic so both an
+# axum handler and a `#[tauri::command]` can call the exact same function
+# (AC#1). It is a normal root-workspace member (picked up by the `crates/*`
+# glob, not `exclude`d), so root `cargo fmt`/`clippy`/`test` cover it directly
+# (PLAN D1).
+
+[dependencies]
+# The single shared engine crate — parse/frame/activity/compose all live here.
+asciicut-core = { path = "../asciicut-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }

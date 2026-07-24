@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>castcut — the cutting room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#0a0d0f; --panel:#111619; --panel-2:#0c1113; --inset:#080b0d;
+    --line:#20282c; --line-bright:#33424a;
+    --paper:#e9e6dd; --dim:#63727a; --faint:#3a464c;
+    --amber:#ffb454; --amber-deep:#c8791f; --amber-glow:rgba(255,180,84,.28);
+    --cyan:#5ad1e6; --cyan-glow:rgba(90,209,230,.30);
+    --red:#ff6b6b; --green:#7fd97f;
+    /* dracula content palette (the sample cast's own theme) */
+    --d-bg:#282a36; --d-fg:#f8f8f2; --d-comment:#6272a4; --d-cyan:#8be9fd;
+    --d-green:#50fa7b; --d-orange:#ffb86c; --d-pink:#ff79c6; --d-purple:#bd93f9;
+    --d-red:#ff5555; --d-yellow:#f1fa8c; --d-sel:#44475a;
+    --mono:"JetBrains Mono","Berkeley Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --r:3px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--ink); color:var(--paper);
+    font-family:var(--mono); font-size:13px; line-height:1.45;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    background-image:
+      radial-gradient(1200px 600px at 78% -10%, rgba(255,180,84,.05), transparent 60%),
+      radial-gradient(900px 500px at 0% 110%, rgba(90,209,230,.045), transparent 55%);
+  }
+  ::selection{background:var(--amber);color:#1a1206}
+  button{font-family:inherit;color:inherit}
+  .u{letter-spacing:.22em;text-transform:uppercase}
+  .mut{color:var(--dim)}
+  .amber{color:var(--amber)}
+  .cyan{color:var(--cyan)}
+
+  /* ---- app shell ---------------------------------------------------- */
+  .app{
+    max-width:1220px; margin:0 auto; min-height:100vh;
+    display:flex; flex-direction:column; padding:14px 16px 0;
+  }
+
+  /* ---- header / clapper -------------------------------------------- */
+  header.clapper{
+    display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+    border:1px solid var(--line); border-bottom:1px solid var(--line-bright);
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    padding:10px 14px; border-radius:var(--r) var(--r) 0 0;
+  }
+  .brand{display:flex;align-items:baseline;gap:9px;white-space:nowrap}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--amber);
+    box-shadow:0 0 10px var(--amber-glow);align-self:center}
+  .brand b{font-weight:700;font-size:15px;letter-spacing:.04em}
+  .brand .tag{color:var(--dim);font-size:11px}
+  .file{
+    display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12px;
+    padding-left:18px;border-left:1px solid var(--line);
+  }
+  .file .name{color:var(--paper)}
+  .file .badge{color:var(--amber);border:1px solid var(--amber-deep);
+    border-radius:2px;padding:0 5px;font-size:10px;letter-spacing:.12em}
+  .ratio{
+    margin-left:auto;display:flex;align-items:center;gap:12px;
+    font-variant-numeric:tabular-nums;white-space:nowrap;
+  }
+  .ratio .raw{color:var(--dim);text-decoration:line-through;text-decoration-color:var(--faint)}
+  .ratio .arrow{color:var(--amber);letter-spacing:-.05em}
+  .ratio .cut{color:var(--amber);font-weight:700;font-size:16px;
+    text-shadow:0 0 14px var(--amber-glow)}
+  .ratio .pct{color:var(--dim);font-size:11px;border:1px solid var(--line);
+    border-radius:2px;padding:1px 6px}
+
+  /* ---- body grid ---------------------------------------------------- */
+  main{display:grid;grid-template-columns:1.62fr .95fr;gap:0;
+    border-left:1px solid var(--line);border-right:1px solid var(--line)}
+  .pane{border-bottom:1px solid var(--line);padding:12px 14px;min-width:0}
+  .pane + .pane{border-left:1px solid var(--line)}
+  .pane-h{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .pane-h .k{font-size:10px;color:var(--dim)}
+  .pane-h .rule{flex:1;height:1px;background:repeating-linear-gradient(
+    90deg,var(--line),var(--line) 4px,transparent 4px,transparent 7px)}
+
+  /* ---- preview terminal -------------------------------------------- */
+  .preview .frame{
+    background:var(--d-bg);border:1px solid #000;border-radius:4px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 1px var(--line) inset;
+    overflow:hidden;
+  }
+  .titlebar{display:flex;align-items:center;gap:7px;padding:7px 10px;
+    background:#20222c;border-bottom:1px solid #15161d}
+  .tl-dot{width:10px;height:10px;border-radius:50%}
+  .tl-dot.r{background:#ff5f57}.tl-dot.y{background:#febc2e}.tl-dot.g{background:#28c840}
+  .titlebar .t{margin-left:6px;color:#8b90a8;font-size:11px}
+  .screen{padding:12px 14px;font-size:12.5px;line-height:1.5;color:var(--d-fg);
+    white-space:pre;overflow:hidden;height:250px}
+  .screen .cmt{color:var(--d-comment)} .screen .grn{color:var(--d-green)}
+  .screen .cyn{color:var(--d-cyan)} .screen .pnk{color:var(--d-pink)}
+  .screen .pur{color:var(--d-purple)} .screen .org{color:var(--d-orange)}
+  .screen .yel{color:var(--d-yellow)} .screen .red{color:var(--d-red)}
+  .screen .sel{background:var(--d-sel);color:#fff}
+  .screen .cur{background:var(--d-fg);color:var(--d-bg)}
+
+  .transport{display:flex;align-items:center;gap:14px;margin-top:11px;
+    font-variant-numeric:tabular-nums}
+  .play{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--amber);color:#1a1206;border:none;border-radius:3px;
+    padding:6px 14px;font-weight:700;font-size:12px;letter-spacing:.03em;cursor:pointer;
+    box-shadow:0 0 0 1px var(--amber-deep),0 6px 18px rgba(255,180,84,.16);
+  }
+  .play:hover{filter:brightness(1.06)} .play:active{transform:translateY(1px)}
+  .tcode{color:var(--paper)} .tcode .sep{color:var(--faint)}
+  .seg-now{color:var(--cyan);font-size:11px}
+  .speed-now{margin-left:auto;color:var(--amber);border:1px solid var(--line);
+    border-radius:2px;padding:2px 8px;font-size:11px}
+
+  /* ---- inspector ---------------------------------------------------- */
+  .insp .empty{color:var(--dim);font-size:12px;padding:20px 4px;line-height:1.7}
+  .seg-title{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
+  .seg-title .id{color:var(--amber);font-weight:700;letter-spacing:.05em}
+  .seg-title .lab{color:var(--paper);font-size:12.5px}
+  .seg-sub{color:var(--dim);font-size:11px;margin-bottom:14px}
+  .field{margin:0 0 13px}
+  .field > label{display:block;font-size:10px;color:var(--dim);margin-bottom:6px}
+  .marks{display:flex;gap:8px}
+  .mark{flex:1;background:var(--inset);border:1px solid var(--line);border-radius:3px;
+    padding:7px 9px}
+  .mark .ml{font-size:9px;color:var(--dim);letter-spacing:.16em}
+  .mark .mv{font-size:14px;color:var(--paper);font-variant-numeric:tabular-nums;margin-top:2px}
+  .mark.in{border-left:2px solid var(--green)} .mark.out{border-left:2px solid var(--red)}
+
+  .stepper{display:flex;align-items:stretch;border:1px solid var(--line);
+    border-radius:3px;overflow:hidden;background:var(--inset);width:100%}
+  .stepper button{background:var(--panel);border:none;color:var(--paper);
+    width:34px;font-size:16px;cursor:pointer;border-right:1px solid var(--line)}
+  .stepper button:last-child{border-right:none;border-left:1px solid var(--line)}
+  .stepper button:hover{background:#182025;color:var(--amber)}
+  .stepper .val{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+    font-variant-numeric:tabular-nums}
+  .stepper .val b{font-size:16px;color:var(--amber);font-weight:700}
+  .stepper .val .un{font-size:10px;color:var(--dim)}
+  .ramp{display:flex;align-items:flex-end;gap:2px;height:14px}
+  .ramp i{width:3px;background:var(--amber-deep);border-radius:1px}
+
+  .hint{font-size:10.5px;color:var(--dim);margin-top:5px;line-height:1.5}
+  .seg-actions{display:flex;gap:8px;margin-top:16px;padding-top:13px;
+    border-top:1px solid var(--line)}
+  .btn{background:var(--panel);border:1px solid var(--line);border-radius:3px;
+    padding:6px 10px;font-size:11px;color:var(--paper);cursor:pointer;letter-spacing:.04em}
+  .btn:hover{border-color:var(--line-bright);background:#161d21}
+  .btn.danger:hover{border-color:var(--red);color:var(--red)}
+
+  /* ---- timeline hero ----------------------------------------------- */
+  .timeline{grid-column:1 / -1;border-left:1px solid var(--line);
+    border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,var(--panel-2),var(--inset));padding:12px 14px 14px}
+  .tl-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .tl-head .idle{margin-left:auto;display:flex;align-items:center;gap:9px;
+    font-size:10px;color:var(--dim)}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:3px;width:120px;
+    background:var(--line-bright);border-radius:3px;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
+    border-radius:50%;background:var(--amber);cursor:pointer;box-shadow:0 0 8px var(--amber-glow)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;
+    background:var(--amber);cursor:pointer}
+
+  .wave-wrap{position:relative;padding:0;user-select:none}
+  /* scanline veil — the CRT phosphor risk, hero only */
+  .wave-wrap::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.16),rgba(0,0,0,.16) 1px,transparent 1px,transparent 3px);
+    mix-blend-mode:multiply;opacity:.5;border-radius:3px}
+  .ticks{display:flex;justify-content:space-between;font-size:9.5px;color:var(--faint);
+    margin-bottom:4px;font-variant-numeric:tabular-nums}
+  .wave{position:relative;height:96px;display:flex;align-items:flex-end;gap:1px;
+    background:var(--inset);border:1px solid var(--line);border-radius:3px;
+    padding:0 3px;overflow:hidden}
+  .wave .bar{flex:1 1 0;background:var(--faint);border-radius:1px 1px 0 0;min-width:0;
+    transition:background .15s}
+  .wave .bar.keep{background:linear-gradient(180deg,var(--amber),var(--amber-deep));
+    box-shadow:0 0 6px var(--amber-glow)}
+  /* segment bands */
+  .band{position:absolute;top:0;bottom:0;border:1px solid var(--amber-deep);
+    border-radius:2px;background:rgba(255,180,84,.06);cursor:pointer;
+    box-shadow:inset 0 0 0 1px rgba(255,180,84,.05);transition:background .12s}
+  .band:hover{background:rgba(255,180,84,.12)}
+  .band.sel{border-color:var(--amber);background:rgba(255,180,84,.16);
+    box-shadow:0 0 0 1px var(--amber),0 0 18px var(--amber-glow)}
+  .band .tab{position:absolute;top:4px;left:4px;font-size:9px;color:var(--amber);
+    letter-spacing:.1em;background:rgba(10,13,15,.7);padding:0 4px;border-radius:2px;
+    white-space:nowrap;pointer-events:none}
+  .band .grip{position:absolute;top:0;bottom:0;width:6px;cursor:ew-resize}
+  .band .grip.l{left:-1px;border-left:2px solid var(--green)}
+  .band .grip.r{right:-1px;border-right:2px solid var(--red)}
+  /* dead-air labels — sit in the valley, clearly readable */
+  .deadair{position:absolute;top:50%;transform:translateY(-50%);
+    display:flex;align-items:center;gap:6px;justify-content:center;
+    font-size:10px;letter-spacing:.03em;color:var(--dim);white-space:nowrap;
+    pointer-events:none;overflow:hidden}
+  .deadair span.pill{display:inline-flex;align-items:center;gap:6px;
+    background:rgba(10,13,15,.72);border:1px solid var(--line);border-radius:2px;
+    padding:2px 8px}
+  .deadair .sc{color:var(--amber-deep)}
+  /* playhead */
+  .playhead{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--cyan);
+    box-shadow:0 0 10px var(--cyan-glow);pointer-events:none;z-index:5}
+  .playhead::before{content:"";position:absolute;top:-1px;left:-3px;
+    border:4px solid transparent;border-top-color:var(--cyan)}
+  /* markers */
+  .marker{position:absolute;top:0;width:0;z-index:6;pointer-events:none}
+  .marker .flag{position:absolute;top:24px;left:0;transform:translateX(-1px);
+    font-size:9px;color:var(--cyan);background:rgba(10,13,15,.9);border:1px solid var(--cyan);
+    border-radius:2px;padding:1px 5px;white-space:nowrap}
+  .marker.rt .flag{left:auto;right:0;transform:translateX(1px)}
+  .marker .stem{position:absolute;top:0;bottom:0;width:1px;
+    background:repeating-linear-gradient(180deg,var(--cyan),var(--cyan) 2px,transparent 2px,transparent 5px);
+    opacity:.6}
+
+  /* ---- filmstrip ---------------------------------------------------- */
+  .film{display:flex;gap:0;margin-top:9px;border:1px solid var(--line);border-radius:3px;
+    background:var(--inset);overflow:hidden}
+  .cell{flex:1 1 0;min-width:0;height:46px;border-right:1px solid #000;position:relative;
+    background:var(--d-bg);overflow:hidden;cursor:pointer}
+  .cell:last-child{border-right:none}
+  .cell.dead{background:var(--panel-2);display:flex;align-items:center;justify-content:center}
+  .cell.dead span{color:var(--faint);font-size:14px}
+  .cell.keep::after{content:"";position:absolute;inset:0;border:1px solid transparent;
+    border-top:2px solid var(--amber)}
+  .cell .mini{transform:scale(.9);transform-origin:top left;font-size:5px;line-height:1.25;
+    padding:3px 4px;white-space:pre;color:var(--d-fg)}
+  .film-labels{display:flex;font-size:9px;color:var(--faint);margin-top:3px;
+    justify-content:space-between;padding:0 2px}
+
+  /* ---- status / keybinds ------------------------------------------- */
+  footer.status{
+    display:flex;align-items:center;gap:2px;flex-wrap:wrap;
+    border:1px solid var(--line);border-top:1px solid var(--line-bright);
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border-radius:0 0 var(--r) var(--r);padding:8px 12px;margin-bottom:16px;
+    position:sticky;bottom:0;font-size:11px;
+  }
+  .kb{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;color:var(--dim);
+    border-right:1px solid var(--line)}
+  .kb:last-of-type{border-right:none}
+  .kb b{color:var(--amber);font-weight:600}
+  .kb key{display:inline-block;min-width:16px;text-align:center;border:1px solid var(--line-bright);
+    border-bottom-width:2px;border-radius:3px;padding:0 4px;color:var(--paper);
+    font-size:10px;background:var(--inset)}
+  .status .live{margin-left:auto;display:inline-flex;align-items:center;gap:7px;color:var(--dim)}
+  .status .live .rec{width:8px;height:8px;border-radius:50%;background:var(--red);
+    box-shadow:0 0 8px rgba(255,107,107,.6);animation:blink 1.6s steps(2) infinite}
+  @keyframes blink{50%{opacity:.25}}
+
+  /* ---- export drawer ------------------------------------------------ */
+  .exp-btn{background:var(--amber);color:#1a1206;border:none;border-radius:3px;
+    padding:5px 13px;font-weight:700;font-size:11px;letter-spacing:.05em;cursor:pointer;
+    box-shadow:0 0 0 1px var(--amber-deep)}
+  .exp-btn:hover{filter:brightness(1.06)}
+  .drawer{position:fixed;inset:0;background:rgba(5,7,8,.72);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .drawer.open{display:flex}
+  .sheet{width:min(720px,100%);background:var(--panel);border:1px solid var(--line-bright);
+    border-radius:6px;box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden}
+  .sheet-h{display:flex;align-items:center;gap:10px;padding:13px 16px;
+    border-bottom:1px solid var(--line);background:var(--panel-2)}
+  .sheet-h b{letter-spacing:.05em}
+  .sheet-h .x{margin-left:auto;background:none;border:1px solid var(--line);border-radius:3px;
+    width:26px;height:26px;color:var(--dim);cursor:pointer;font-size:14px}
+  .sheet-h .x:hover{color:var(--red);border-color:var(--red)}
+  .sheet-b{padding:16px}
+  .out-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .out{flex:1;min-width:120px;border:1px solid var(--line);border-radius:3px;
+    padding:9px 11px;background:var(--inset)}
+  .out .ol{font-size:9px;color:var(--dim);letter-spacing:.14em}
+  .out .ov{color:var(--paper);font-size:12px;margin-top:3px}
+  .out .os{color:var(--amber);font-size:10px}
+  .cmd{background:var(--inset);border:1px solid var(--line);border-left:2px solid var(--amber);
+    border-radius:3px;padding:11px 12px;font-size:11.5px;line-height:1.7;color:var(--paper);
+    white-space:pre-wrap;word-break:break-word;position:relative}
+  .cmd .c{color:var(--d-comment)} .cmd .f{color:var(--cyan)} .cmd .a{color:var(--amber)}
+  .copy{position:absolute;top:8px;right:8px;background:var(--panel);border:1px solid var(--line);
+    border-radius:3px;color:var(--dim);font-size:10px;padding:3px 8px;cursor:pointer}
+  .copy:hover{color:var(--amber);border-color:var(--amber-deep)}
+  .sheet-f{display:flex;gap:10px;align-items:center;padding:13px 16px;
+    border-top:1px solid var(--line);background:var(--panel-2)}
+  .sheet-f .go{background:var(--amber);color:#1a1206;border:none;border-radius:3px;
+    padding:8px 16px;font-weight:700;cursor:pointer;letter-spacing:.03em}
+  .sheet-f .note{color:var(--dim);font-size:10.5px}
+
+  /* ---- toasts ------------------------------------------------------- */
+  #toasts{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:60;
+    display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+  .toast{background:var(--panel);border:1px solid var(--line-bright);border-left:2px solid var(--amber);
+    border-radius:3px;padding:7px 13px;font-size:11.5px;color:var(--paper);
+    box-shadow:0 10px 30px rgba(0,0,0,.5);animation:rise .25s ease both}
+  .toast .g{color:var(--amber)}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}}
+
+  /* ---- responsive --------------------------------------------------- */
+  @media (max-width:880px){
+    main{grid-template-columns:1fr}
+    .pane + .pane{border-left:none}
+    .timeline{overflow-x:auto}
+    .wave-wrap,.film{min-width:640px}
+    .ratio{width:100%;margin-left:0;justify-content:flex-start}
+    footer.status{overflow-x:auto}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+  :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER / CLAPPER -->
+  <header class="clapper">
+    <div class="brand">
+      <span class="dot"></span>
+      <b>castcut</b>
+      <span class="tag u">cutting&nbsp;room</span>
+    </div>
+    <div class="file">
+      <span class="mut">◈</span>
+      <span class="name">forge_sprint.cast</span>
+      <span class="badge u">raw&nbsp;cut</span>
+      <span class="mut">·&nbsp;120×40 · dracula</span>
+    </div>
+    <div class="ratio">
+      <span class="u mut" style="font-size:10px">runtime</span>
+      <span class="raw" id="rawTime">17:04</span>
+      <span class="arrow">──▶</span>
+      <span class="cut" id="cutTime">0:41</span>
+      <span class="pct" id="pctCut">96% trimmed</span>
+    </div>
+  </header>
+
+  <!-- BODY -->
+  <main>
+
+    <!-- PREVIEW -->
+    <section class="pane preview">
+      <div class="pane-h">
+        <span class="k u amber">◆ preview</span>
+        <span class="k mut">composed director's cut</span>
+        <span class="rule"></span>
+      </div>
+      <div class="frame">
+        <div class="titlebar">
+          <span class="tl-dot r"></span><span class="tl-dot y"></span><span class="tl-dot g"></span>
+          <span class="t">~/src/sample-projects/cartographer — glm-5.2</span>
+        </div>
+        <div class="screen" id="screen"></div>
+      </div>
+      <div class="transport">
+        <button class="play" id="playBtn" aria-label="Play or pause the composed cut">▶&nbsp;&nbsp;Play cut</button>
+        <span class="tcode"><span id="phTime">0:00</span> <span class="sep">/</span> <span id="phTotal">0:41</span></span>
+        <span class="seg-now" id="segNow">▸ s1 · sprint command fires</span>
+        <span class="speed-now" id="speedNow">1.0×</span>
+      </div>
+    </section>
+
+    <!-- INSPECTOR -->
+    <section class="pane insp">
+      <div class="pane-h">
+        <span class="k u amber">◆ segment</span>
+        <span class="k mut" id="inspCount">4 kept</span>
+        <span class="rule"></span>
+      </div>
+      <div id="inspBody"></div>
+    </section>
+
+    <!-- TIMELINE HERO -->
+    <section class="timeline">
+      <div class="tl-head">
+        <span class="k u amber">◆ activity</span>
+        <span class="k mut">change density · dead air is flat</span>
+        <div class="idle">
+          <span class="u">idle&nbsp;cap</span>
+          <input type="range" id="idle" min="0.2" max="2" step="0.1" value="0.4" aria-label="Global idle cap in seconds" />
+          <span id="idleVal" style="color:var(--amber);width:34px">0.4s</span>
+        </div>
+      </div>
+
+      <div class="ticks" id="ticks"></div>
+      <div class="wave-wrap">
+        <div class="wave" id="wave"></div>
+        <div id="overlay"></div>
+        <div class="playhead" id="ph" style="left:0"></div>
+      </div>
+
+      <div class="film" id="film"></div>
+      <div class="film-labels">
+        <span>00:00</span><span>filmstrip · real frames, not blind seconds</span><span>17:04</span>
+      </div>
+    </section>
+  </main>
+
+  <!-- STATUS / KEYBINDS -->
+  <footer class="status">
+    <span class="kb"><key>␣</key> <b>play</b></span>
+    <span class="kb"><key>[</key><key>]</key> <b>seg</b></span>
+    <span class="kb"><key>i</key> in</span>
+    <span class="kb"><key>o</key> out</span>
+    <span class="kb"><key>s</key> speed</span>
+    <span class="kb"><key>h</key> hold</span>
+    <span class="kb"><key>x</key> <span style="color:var(--red)">cut</span></span>
+    <span class="kb"><key>e</key> <b>export</b></span>
+    <span class="live"><span class="rec"></span>local · <span class="amber">npx castcut</span> · unsaved</span>
+    <button class="exp-btn u" id="openExport" style="margin-left:12px">Export cut →</button>
+  </footer>
+</div>
+
+<!-- EXPORT DRAWER -->
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Export cut">
+  <div class="sheet">
+    <div class="sheet-h">
+      <span class="amber">◆</span><b class="u">Export cut</b>
+      <span class="mut" style="font-size:11px">no magic — here's the command</span>
+      <button class="x" id="closeExport" aria-label="Close">✕</button>
+    </div>
+    <div class="sheet-b">
+      <div class="out-row">
+        <div class="out"><div class="ol u">cast</div><div class="ov">forge_sprint.cut.cast</div><div class="os" id="oCast">0:41 · 4 segments</div></div>
+        <div class="out"><div class="ol u">video</div><div class="ov">forge_sprint.mp4</div><div class="os">+ .webm · .gif</div></div>
+        <div class="out"><div class="ol u">project</div><div class="ov">forge_sprint.castcut.json</div><div class="os">round-trips</div></div>
+      </div>
+      <div class="cmd" id="cmd">
+<button class="copy" id="copyCmd">copy</button><span class="c"># 1 · compose the edit into a new cast (non-destructive)</span>
+castcut compose <span class="f">forge_sprint.castcut.json</span> &gt; <span class="f">forge_sprint.cut.cast</span>
+
+<span class="c"># 2 · render video with the recording's own theme</span>
+agg <span class="a">--theme</span> dracula <span class="a">--font-family</span> "JetBrains Mono" <span class="a">--font-size</span> 14 <span class="a">--fps-cap</span> 24 \
+    forge_sprint.cut.cast forge_sprint.gif
+ffmpeg <span class="a">-i</span> forge_sprint.gif <span class="a">-pix_fmt</span> yuv420p <span class="a">-movflags</span> +faststart forge_sprint.mp4
+      </div>
+    </div>
+    <div class="sheet-f">
+      <button class="go" id="doExport">▸ Write cut &amp; render</button>
+      <span class="note">agg + ffmpeg run in the local sidecar · <span class="amber" id="fNote">est. 0:41 clip</span></span>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+(() => {
+  "use strict";
+  const SRC_LEN = 1024;                 // source seconds (≈17:04)
+  const BUCKETS = 176;                  // waveform resolution
+  const reduce = matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+  // ---- real segments from samples/sample.castcut.json ----------------
+  // activeLen = seconds of real change that survive the idle cap (< window)
+  const segs = [
+    { id:"s1", label:"sprint command fires",           in:25,  out:31,  len:6,  activeLen:5,   speed:1.0, hold:0.0 },
+    { id:"s2", label:"orchestrator dashboard opens",    in:472, out:504, len:32, activeLen:13,  speed:2.0, hold:1.5 },
+    { id:"s3", label:"cache/cost lens · full pipeline", in:618, out:646, len:28, activeLen:11,  speed:2.0, hold:1.5 },
+    { id:"s4", label:"8-phase transcript payoff",       in:916, out:947, len:31, activeLen:18,  speed:1.0, hold:3.0 },
+  ];
+  const markers = [ { t:940, text:"8-phase transcript" } ];
+  const BEAT = 0.5;
+  let sel = "s1", idleCap = 0.4, playing = false, phFrac = 0;
+
+  // ---- terminal preview frames (dracula) -----------------------------
+  const frames = {
+    s1:
+`<span class="cmt">~/src/sample-projects/cartographer (main)</span>
+<span class="grn">$</span> forge <span class="cyn">sprint</span> --plan sprints/03-cartographer.md<span class="cur"> </span>
+
+<span class="org">⚡</span> <span class="pur">kindling forge</span>  <span class="cmt">·  16 cmds · 4 skills</span>
+<span class="cmt">────────────────────────────────────────────────────</span>
+  parsing sprint plan   <span class="grn">✓</span> 11 tasks across 3 phases
+  spawning orchestrator <span class="grn">✓</span>
+  <span class="yel">⠋</span> allocating agents <span class="cmt">(ollama-cloud · glm-5.2)</span>`,
+    s2:
+`<span class="pur">╭─ orchestrator ─────────────────────────────╮</span>
+<span class="pur">│</span> phase 1/3  <span class="cyn">scaffold</span>          <span class="grn">▰▰▰▰▰▱▱▱</span> 62% <span class="pur">│</span>
+<span class="pur">│</span> phase 2/3  <span class="cmt">bind + route</span>      <span class="cmt">▱▱▱▱▱▱▱▱</span>  0% <span class="pur">│</span>
+<span class="pur">│</span> phase 3/3  <span class="cmt">verify</span>            <span class="cmt">▱▱▱▱▱▱▱▱</span>  0% <span class="pur">│</span>
+<span class="pur">├─────────────────────────────────────────────┤</span>
+<span class="pur">│</span> <span class="org">tsc</span> 0 err  <span class="org">eslint</span> 0  <span class="grn">tests 14/14</span>       <span class="pur">│</span>
+<span class="pur">╰─────────────────────────────────────────────╯</span>
+  <span class="cyn">▸</span> agent-2 wrote <span class="grn">src/tiles/provider.ts</span> <span class="cmt">(+142)</span>`,
+    s3:
+`<span class="yel">cache / cost lens</span>  <span class="cmt">— last 6m</span>
+<span class="cmt">────────────────────────────────────────────────────</span>
+  cache hits    <span class="grn">████████████████░░░░</span>  81%
+  input tokens  <span class="cyn">1.24M</span>   output <span class="cyn">312K</span>
+  est. cost     <span class="grn">$0.94</span>  <span class="cmt">(cached $3.10 saved)</span>
+
+  <span class="pur">pipeline</span>  scaffold <span class="grn">→</span> bind <span class="grn">→</span> route <span class="grn">→</span> <span class="yel">verify</span>
+            <span class="grn">✓          ✓        ✓        ⠹</span>`,
+    s4:
+`<span class="pnk">◆ transcript</span> <span class="cmt">— 8 phases · glm-5.2</span>
+<span class="cmt">────────────────────────────────────────────────────</span>
+ 1 <span class="grn">✓</span> intake        5 <span class="grn">✓</span> implement
+ 2 <span class="grn">✓</span> plan          6 <span class="grn">✓</span> verify
+ 3 <span class="grn">✓</span> decompose     7 <span class="grn">✓</span> review
+ 4 <span class="grn">✓</span> allocate      8 <span class="grn">✓</span> <span class="yel">land</span>
+<span class="cmt">────────────────────────────────────────────────────</span>
+ <span class="grn">sprint complete</span>  <span class="cmt">11/11 tasks · 3 phases ·</span> <span class="cyn">4m 12s</span><span class="cur"> </span>`
+  };
+  const deadFrame =
+`<span class="cmt">  ⠙  glm-5.2 thinking…</span>
+
+<span class="cmt">  waiting on model · nothing on screen</span>
+<span class="cmt">  ── dead air ──────────────────────────</span>
+
+<span style="color:var(--faint)">  (this is what castcut cuts for you)</span>`;
+
+  // ---- format helpers ------------------------------------------------
+  const mmss = s => { s=Math.max(0,Math.round(s)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); };
+  const el = id => document.getElementById(id);
+
+  // ---- derived timings -----------------------------------------------
+  function segOut(sg){ const a = Math.min(sg.activeLen, sg.len) * (idleCap/0.4 > 1 ? 1 : 1); // idle cap tightens dead frames
+    const scaled = (sg.activeLen * clampIdle()) / sg.speed; return scaled + sg.hold; }
+  function clampIdle(){ // tighter idle cap keeps slightly less; 0.4 = baseline 1.0
+    return 0.82 + (idleCap-0.4)*0.14; }
+  function cutDuration(){
+    let t=0; segs.forEach((s,i)=>{ if(i>0) t+=BEAT; t+=segOut(s); }); return t; }
+  function segStartInCut(idx){ let t=0; for(let i=0;i<idx;i++){ t+=segOut(segs[i]); if(i<idx) t+=BEAT;}
+    // start of idx segment
+    let acc=0; for(let i=0;i<idx;i++){ if(i>0)acc+=BEAT; acc+=segOut(segs[i]); } if(idx>0)acc+=BEAT; return acc; }
+
+  // ---- build waveform data (deterministic) ---------------------------
+  const wave = (() => {
+    const a = new Array(BUCKETS).fill(0);
+    const centers = segs.map(s => (s.in+s.out)/2);
+    for(let i=0;i<BUCKETS;i++){
+      const t = (i/BUCKETS)*SRC_LEN;
+      let v = 0.04 + 0.03*Math.abs(Math.sin(i*1.7));         // faint spinner churn
+      segs.forEach(s=>{
+        if(t>=s.in-2 && t<=s.out+2){
+          const mid=(s.in+s.out)/2, half=(s.out-s.in)/2+2;
+          const d=Math.abs(t-mid)/half;
+          v = Math.max(v, (1-d*d)* (0.72+0.28*Math.abs(Math.sin(i*2.3))) );
+        }
+      });
+      // a couple of isolated real spikes in the dead air (honesty: not all activity is kept)
+      if(i===58||i===131) v=Math.max(v,0.34);
+      a[i]=Math.min(1,v);
+    }
+    return a;
+  })();
+
+  function inSeg(t){ return segs.find(s=>t>=s.in && t<=s.out); }
+
+  // ---- render waveform ----------------------------------------------
+  const waveEl = el("wave");
+  wave.forEach((v,i)=>{
+    const t=(i/BUCKETS)*SRC_LEN; const b=document.createElement("div");
+    b.className="bar"+(inSeg(t)?" keep":"");
+    b.style.height=(6+v*88)+"%"; waveEl.appendChild(b);
+  });
+
+  // ticks
+  const tEl=el("ticks");
+  for(let m=0;m<=17;m+=SRC_LEN/1024*0+ (17/5)) {}
+  ["0:00","3:24","6:49","10:14","13:38","17:04"].forEach(l=>{
+    const s=document.createElement("span"); s.textContent=l; tEl.appendChild(s);
+  });
+
+  // ---- overlay: bands + dead-air + markers ---------------------------
+  const overlay=el("overlay");
+  function pct(t){ return (t/SRC_LEN)*100; }
+  function drawOverlay(){
+    overlay.innerHTML="";
+    // dead-air labels between segments
+    const gaps=[[0,segs[0].in],[segs[0].out,segs[1].in],[segs[1].out,segs[2].in],
+                [segs[2].out,segs[3].in],[segs[3].out,SRC_LEN]];
+    gaps.forEach(([a,b])=>{
+      if(b-a<40) return;
+      const d=document.createElement("div"); d.className="deadair";
+      d.style.left=pct(a)+"%"; d.style.width=pct(b-a)+"%";
+      d.innerHTML=`<span class="pill"><span class="sc">✂</span> dead air · ${mmss(b-a)}</span>`;
+      overlay.appendChild(d);
+    });
+    // segment bands
+    segs.forEach(s=>{
+      const band=document.createElement("div");
+      band.className="band"+(s.id===sel?" sel":"");
+      band.style.left=pct(s.in)+"%"; band.style.width=pct(s.out-s.in)+"%";
+      band.dataset.id=s.id;
+      band.innerHTML=`<span class="grip l" title="mark in"></span>
+        <span class="tab">${s.id.toUpperCase()} · ${s.speed.toFixed(1)}×${s.hold?" ⏸"+s.hold+"s":""}</span>
+        <span class="grip r" title="mark out"></span>`;
+      band.addEventListener("click",()=>selectSeg(s.id));
+      overlay.appendChild(band);
+    });
+    // markers
+    markers.forEach(m=>{
+      const mk=document.createElement("div");
+      mk.className="marker"+(m.t/SRC_LEN>0.8?" rt":""); mk.style.left=pct(m.t)+"%";
+      mk.innerHTML=`<span class="flag">⚑ ${m.text}</span><span class="stem"></span>`;
+      overlay.appendChild(mk);
+    });
+  }
+
+  // ---- filmstrip -----------------------------------------------------
+  const filmEl=el("film"); const CELLS=20;
+  function drawFilm(){
+    filmEl.innerHTML="";
+    for(let i=0;i<CELLS;i++){
+      const t=((i+.5)/CELLS)*SRC_LEN; const sg=inSeg(t);
+      const c=document.createElement("div");
+      if(sg){ c.className="cell keep";
+        c.innerHTML=`<div class="mini">${frames[sg.id].replace(/<span class="cur">.<\/span>/,"")}</div>`;
+        c.title=sg.label; c.addEventListener("click",()=>selectSeg(sg.id));
+      } else { c.className="cell dead"; c.innerHTML="<span>⠿</span>"; c.title="dead air"; }
+      filmEl.appendChild(c);
+    }
+  }
+
+  // ---- inspector -----------------------------------------------------
+  function ramp(speed){ const n=5; let h="";
+    for(let i=0;i<n;i++){ const hh=4+ (i/(n-1))*10*Math.min(speed/2,1.4);
+      h+=`<i style="height:${hh}px"></i>`; } return h; }
+  function renderInspector(){
+    const s=segs.find(x=>x.id===sel);
+    const body=el("inspBody");
+    if(!s){ body.innerHTML=`<div class="empty">No segment selected.<br>Click a band on the timeline,<br>or press <b class="amber">]</b> to step forward.</div>`; return; }
+    body.innerHTML=`
+      <div class="seg-title"><span class="id">${s.id.toUpperCase()}</span><span class="lab">${s.label}</span></div>
+      <div class="seg-sub">source ${mmss(s.in)}–${mmss(s.out)} · ${(s.out-s.in).toFixed(0)}s window → <span class="amber">${segOut(s).toFixed(1)}s</span> on screen</div>
+
+      <div class="field">
+        <label class="u">in / out marks</label>
+        <div class="marks">
+          <div class="mark in"><div class="ml u">in</div><div class="mv">${mmss(s.in)}</div></div>
+          <div class="mark out"><div class="ml u">out</div><div class="mv">${mmss(s.out)}</div></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="u">speed · fast-forward the wait</label>
+        <div class="stepper">
+          <button data-act="speed-" aria-label="Slower">−</button>
+          <div class="val"><b>${s.speed.toFixed(1)}×</b><span class="ramp">${ramp(s.speed)}</span></div>
+          <button data-act="speed+" aria-label="Faster">+</button>
+        </div>
+        <div class="hint">1× stays honest on the payoff · 2×+ compresses drawing/scroll.</div>
+      </div>
+
+      <div class="field">
+        <label class="u">hold · freeze the last frame</label>
+        <div class="stepper">
+          <button data-act="hold-" aria-label="Less hold">−</button>
+          <div class="val"><b>${s.hold.toFixed(1)}</b><span class="un">sec dwell</span></div>
+          <button data-act="hold+" aria-label="More hold">+</button>
+        </div>
+        <div class="hint">Give the viewer a beat to read the result before the cut.</div>
+      </div>
+
+      <div class="seg-actions">
+        <button class="btn" data-act="prev">← prev</button>
+        <button class="btn" data-act="next">next →</button>
+        <button class="btn danger" data-act="drop" style="margin-left:auto">✂ drop segment</button>
+      </div>`;
+    body.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>act(b.dataset.act)));
+  }
+
+  function act(a){
+    const i=segs.findIndex(x=>x.id===sel); const s=segs[i];
+    if(a==="speed+"){ s.speed=Math.min(4,+(s.speed+0.5).toFixed(1)); toast(`▸ ${s.id} speed → ${s.speed}×`); }
+    if(a==="speed-"){ s.speed=Math.max(0.5,+(s.speed-0.5).toFixed(1)); toast(`▸ ${s.id} speed → ${s.speed}×`); }
+    if(a==="hold+"){ s.hold=Math.min(5,+(s.hold+0.5).toFixed(1)); toast(`▸ ${s.id} hold → ${s.hold}s`); }
+    if(a==="hold-"){ s.hold=Math.max(0,+(s.hold-0.5).toFixed(1)); toast(`▸ ${s.id} hold → ${s.hold}s`); }
+    if(a==="next"){ selectSeg(segs[Math.min(segs.length-1,i+1)].id); }
+    if(a==="prev"){ selectSeg(segs[Math.max(0,i-1)].id); }
+    if(a==="drop"){ toast(`✂ ${s.id} dropped — undo with u`,"var(--red)"); }
+    refresh();
+  }
+
+  // ---- selection + refresh -------------------------------------------
+  function selectSeg(id){ sel=id; renderInspector(); drawOverlay(); syncPreview(); }
+  function syncPreview(){
+    const s=segs.find(x=>x.id===sel)||segs[0];
+    el("screen").innerHTML=frames[s.id];
+    el("segNow").textContent=`▸ ${s.id} · ${s.label}`;
+    el("speedNow").textContent=s.speed.toFixed(1)+"×";
+  }
+  function refresh(){
+    const cut=cutDuration();
+    el("cutTime").textContent=mmss(cut);
+    el("phTotal").textContent=mmss(cut);
+    el("oCast").textContent=`${mmss(cut)} · ${segs.length} segments`;
+    el("fNote").textContent=`est. ${mmss(cut)} clip`;
+    el("pctCut").textContent=Math.round((1-cut/SRC_LEN)*100)+"% trimmed";
+    el("inspCount").textContent=segs.length+" kept";
+    drawOverlay(); syncPreview();
+    updatePlayhead();
+  }
+
+  // ---- playhead + playback (hops the dead air) -----------------------
+  function updatePlayhead(){
+    // map cut-fraction → a source position that lives inside kept segments
+    const cut=cutDuration(); const tCut=phFrac*cut;
+    let acc=0, srcT=segs[0].in;
+    for(let i=0;i<segs.length;i++){ if(i>0)acc+=BEAT; const dur=segOut(segs[i]);
+      if(tCut<=acc+dur || i===segs.length-1){
+        const f=Math.max(0,Math.min(1,(tCut-acc)/dur));
+        const s=segs[i]; srcT=s.in + f*(s.out-s.in);
+        el("segNow").textContent=`▸ ${s.id} · ${s.label}`;
+        el("speedNow").textContent=s.speed.toFixed(1)+"×";
+        if(playing) el("screen").innerHTML=frames[s.id];
+        break;
+      } acc+=dur;
+    }
+    el("ph").style.left=pct(srcT)+"%";
+    el("phTime").textContent=mmss(tCut);
+  }
+  let raf=null,last=0;
+  function loop(ts){
+    if(!playing) return;
+    if(!last) last=ts; const dt=(ts-last)/1000; last=ts;
+    phFrac += dt/cutDuration();
+    if(phFrac>=1){ phFrac=0; playing=false; setPlayBtn(); syncPreview(); updatePlayhead(); return; }
+    updatePlayhead(); raf=requestAnimationFrame(loop);
+  }
+  function setPlayBtn(){ el("playBtn").innerHTML = playing?"❚❚&nbsp;&nbsp;Pause":"▶&nbsp;&nbsp;Play cut"; }
+  function togglePlay(){
+    playing=!playing; setPlayBtn();
+    if(playing){ if(phFrac>=1)phFrac=0; last=0;
+      if(reduce){ phFrac=1; playing=false; setPlayBtn(); phFrac=0; toast("▸ playback (motion reduced)"); updatePlayhead(); return; }
+      toast("▸ playing composed cut — watch it skip the wait"); raf=requestAnimationFrame(loop);
+    } else { cancelAnimationFrame(raf); }
+  }
+
+  // ---- export drawer -------------------------------------------------
+  function openExport(){ el("drawer").classList.add("open"); }
+  function closeExport(){ el("drawer").classList.remove("open"); }
+  el("openExport").addEventListener("click",openExport);
+  el("closeExport").addEventListener("click",closeExport);
+  el("drawer").addEventListener("click",e=>{ if(e.target===el("drawer")) closeExport(); });
+  el("doExport").addEventListener("click",()=>{ closeExport(); toast(`▸ wrote forge_sprint.cut.cast · rendering ${mmss(cutDuration())} mp4…`); });
+  el("copyCmd").addEventListener("click",()=>{
+    const txt=el("cmd").innerText.replace(/^copy\n/,"");
+    navigator.clipboard?.writeText(txt).then(()=>toast("▸ command copied")).catch(()=>toast("▸ command copied"));
+  });
+
+  // ---- idle cap ------------------------------------------------------
+  el("idle").addEventListener("input",e=>{
+    idleCap=+e.target.value; el("idleVal").textContent=idleCap.toFixed(1)+"s"; refresh();
+  });
+
+  // ---- transport + keys ----------------------------------------------
+  el("playBtn").addEventListener("click",togglePlay);
+  addEventListener("keydown",e=>{
+    if(e.target.tagName==="INPUT") return;
+    const i=segs.findIndex(x=>x.id===sel);
+    switch(e.key){
+      case " ": e.preventDefault(); togglePlay(); break;
+      case "]": selectSeg(segs[Math.min(segs.length-1,i+1)].id); break;
+      case "[": selectSeg(segs[Math.max(0,i-1)].id); break;
+      case "s": act("speed+"); break;
+      case "h": act("hold+"); break;
+      case "i": toast("▸ mark in set — drag the green grip"); break;
+      case "o": toast("▸ mark out set — drag the red grip"); break;
+      case "x": act("drop"); break;
+      case "e": openExport(); break;
+    }
+  });
+
+  // ---- toasts --------------------------------------------------------
+  let tHost=el("toasts");
+  function toast(msg,color){
+    const t=document.createElement("div"); t.className="toast";
+    t.innerHTML=`<span class="g" style="${color?`color:${color}`:""}">${msg[0]}</span>${msg.slice(1)}`;
+    tHost.appendChild(t);
+    setTimeout(()=>{ t.style.transition="opacity .3s"; t.style.opacity="0";
+      setTimeout(()=>t.remove(),300); }, 2100);
+  }
+
+  // ---- boot ----------------------------------------------------------
+  drawOverlay(); drawFilm(); renderInspector(); refresh(); setPlayBtn();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>castcut — the cutting room (v2 proposal)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     castcut UX v2 — proposal mock.
+     Identity is UNCHANGED from v1 (amber/cyan on near-black,
+     JetBrains Mono, clapper metaphor). What changes:
+       1. Onboarding: a welcome screen instead of 5 empty-state negatives
+       2. Filmstrip → per-segment contact sheet (median frame, actionable)
+       3. Solo/loop a single segment + IN/OUT nudge w/ boundary preview
+       4. Teaching copy decays; keybinds collapse behind "?"
+       5. Header = 3 zones, the raw→cut ratio is the hero
+     ============================================================ */
+  :root{
+    --ink:#0a0d0f; --panel:#111619; --panel-2:#0c1113; --inset:#080b0d;
+    --line:#20282c; --line-bright:#33424a;
+    --paper:#e9e6dd; --dim:#63727a; --faint:#3a464c;
+    --amber:#ffb454; --amber-deep:#c8791f; --amber-glow:rgba(255,180,84,.28);
+    --cyan:#5ad1e6; --cyan-glow:rgba(90,209,230,.30);
+    --red:#ff6b6b; --green:#7fd97f;
+    --d-bg:#282a36; --d-fg:#f8f8f2; --d-comment:#6272a4; --d-cyan:#8be9fd;
+    --d-green:#50fa7b; --d-orange:#ffb86c; --d-pink:#ff79c6; --d-purple:#bd93f9;
+    --d-red:#ff5555; --d-yellow:#f1fa8c; --d-sel:#44475a;
+    --mono:"JetBrains Mono","Berkeley Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --r:3px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--ink); color:var(--paper);
+    font-family:var(--mono); font-size:13px; line-height:1.45;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    background-image:
+      radial-gradient(1200px 600px at 78% -10%, rgba(255,180,84,.05), transparent 60%),
+      radial-gradient(900px 500px at 0% 110%, rgba(90,209,230,.045), transparent 55%);
+  }
+  ::selection{background:var(--amber);color:#1a1206}
+  button{font-family:inherit;color:inherit}
+  .u{letter-spacing:.22em;text-transform:uppercase}
+  .mut{color:var(--dim)} .amber{color:var(--amber)} .cyan{color:var(--cyan)}
+
+  /* ================= 1. WELCOME / ONBOARDING ================= */
+  .welcome{
+    position:fixed; inset:0; z-index:80; display:flex;
+    align-items:center; justify-content:center; padding:24px;
+    background:var(--ink);
+    background-image:
+      radial-gradient(1000px 520px at 50% -20%, rgba(255,180,84,.07), transparent 60%),
+      radial-gradient(800px 420px at 10% 120%, rgba(90,209,230,.05), transparent 55%);
+  }
+  .welcome.gone{display:none}
+  .wel-card{width:min(680px,100%);text-align:left}
+  .wel-brand{display:flex;align-items:center;gap:11px;margin-bottom:26px}
+  .wel-brand .dot{width:11px;height:11px;border-radius:50%;background:var(--amber);
+    box-shadow:0 0 14px var(--amber-glow)}
+  .wel-brand b{font-size:22px;letter-spacing:.04em;font-weight:700}
+  .wel-brand .tag{color:var(--dim);font-size:11px}
+  .wel-lede{font-size:15px;line-height:1.75;margin:0 0 30px;max-width:46ch}
+  .wel-lede .hi{color:var(--amber)}
+  .wel-acts{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:32px}
+  .wel-btn{
+    flex:1; min-width:210px; text-align:left; cursor:pointer;
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line); border-radius:4px; padding:15px 17px;
+    transition:border-color .15s, background .15s, transform .1s;
+  }
+  .wel-btn:hover{border-color:var(--line-bright);background:#161d21}
+  .wel-btn:active{transform:translateY(1px)}
+  .wel-btn.primary{border-color:var(--amber-deep);
+    background:linear-gradient(180deg,rgba(255,180,84,.10),rgba(255,180,84,.03))}
+  .wel-btn.primary:hover{border-color:var(--amber)}
+  .wel-btn .t{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600}
+  .wel-btn .t .ic{color:var(--amber)}
+  .wel-btn .s{color:var(--dim);font-size:11px;margin-top:5px;line-height:1.55}
+  .wel-recent .rl{font-size:10px;color:var(--dim);letter-spacing:.2em;margin-bottom:9px}
+  .wel-row{
+    display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer;
+    border:1px solid transparent;border-radius:3px;font-size:12px;
+  }
+  .wel-row:hover{background:var(--panel);border-color:var(--line)}
+  .wel-row .nm{color:var(--paper)}
+  .wel-row .mt{margin-left:auto;color:var(--faint);font-size:10.5px}
+  .wel-foot{margin-top:30px;color:var(--faint);font-size:10.5px;
+    border-top:1px solid var(--line);padding-top:14px}
+
+  /* ================= app shell ================= */
+  .app{max-width:1260px;margin:0 auto;height:100vh;display:flex;
+    flex-direction:column;padding:14px 16px 0;overflow:hidden}
+  .app.hidden{display:none}
+
+  /* ---- header: 3 zones, ratio is the hero ---- */
+  header.clapper{
+    display:flex;align-items:center;gap:16px;
+    border:1px solid var(--line);border-bottom:1px solid var(--line-bright);
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    padding:9px 14px;border-radius:var(--r) var(--r) 0 0;flex:0 0 auto;
+  }
+  .brand{display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);
+    box-shadow:0 0 10px var(--amber-glow)}
+  .brand b{font-weight:700;font-size:14px;letter-spacing:.04em}
+  .file{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12px;
+    padding-left:16px;border-left:1px solid var(--line);min-width:0}
+  .file .name{color:var(--paper);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .file .dirty{color:var(--amber);font-size:14px;line-height:1}
+  /* the payoff number — deliberately the loudest thing in the header */
+  .ratio{margin-left:auto;display:flex;align-items:baseline;gap:10px;
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ratio .raw{color:var(--faint);text-decoration:line-through;
+    text-decoration-color:var(--faint);font-size:12px}
+  .ratio .arrow{color:var(--amber-deep);letter-spacing:-.05em;font-size:11px}
+  .ratio .cut{color:var(--amber);font-weight:700;font-size:23px;letter-spacing:.01em;
+    text-shadow:0 0 18px var(--amber-glow)}
+  .ratio .pct{color:var(--dim);font-size:10.5px}
+
+  /* ---- body grid ---- */
+  main{display:grid;grid-template-columns:1.62fr .95fr;
+    grid-template-rows:minmax(0,1fr) auto;gap:0;flex:1 1 auto;min-height:0;
+    border-left:1px solid var(--line);border-right:1px solid var(--line)}
+  .pane{border-bottom:1px solid var(--line);padding:11px 14px;min-width:0;min-height:0}
+  .pane + .pane{border-left:1px solid var(--line)}
+  .pane-h{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  .pane-h .k{font-size:10px;color:var(--dim)}
+  .pane-h .rule{flex:1;height:1px;background:repeating-linear-gradient(
+    90deg,var(--line),var(--line) 4px,transparent 4px,transparent 7px)}
+
+  /* ---- preview ---- */
+  .preview{display:flex;flex-direction:column}
+  .preview .frame{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+    background:var(--d-bg);border:1px solid #000;border-radius:4px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 1px var(--line) inset;overflow:hidden}
+  .titlebar{display:flex;align-items:center;gap:7px;padding:7px 10px;
+    background:#20222c;border-bottom:1px solid #15161d;flex:0 0 auto}
+  .tl-dot{width:10px;height:10px;border-radius:50%}
+  .tl-dot.r{background:#ff5f57}.tl-dot.y{background:#febc2e}.tl-dot.g{background:#28c840}
+  .titlebar .t{margin-left:6px;color:#8b90a8;font-size:11px}
+  .titlebar .badge{margin-left:auto;font-size:9.5px;letter-spacing:.14em;
+    color:var(--cyan);border:1px solid rgba(90,209,230,.4);border-radius:2px;
+    padding:1px 6px;opacity:0;transition:opacity .15s}
+  .titlebar .badge.on{opacity:1}
+  .screen{flex:1 1 auto;min-height:0;padding:12px 14px;font-size:12.5px;line-height:1.5;
+    color:var(--d-fg);white-space:pre;overflow:hidden}
+  .screen .cmt{color:var(--d-comment)} .screen .grn{color:var(--d-green)}
+  .screen .cyn{color:var(--d-cyan)} .screen .pnk{color:var(--d-pink)}
+  .screen .pur{color:var(--d-purple)} .screen .org{color:var(--d-orange)}
+  .screen .yel{color:var(--d-yellow)} .screen .red{color:var(--d-red)}
+  .screen .cur{background:var(--d-fg);color:var(--d-bg)}
+
+  .transport{display:flex;align-items:center;gap:12px;margin-top:10px;flex:0 0 auto;
+    font-variant-numeric:tabular-nums}
+  .play{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--amber);color:#1a1206;border:none;border-radius:3px;
+    padding:6px 14px;font-weight:700;font-size:12px;letter-spacing:.03em;cursor:pointer;
+    box-shadow:0 0 0 1px var(--amber-deep),0 6px 18px rgba(255,180,84,.16)}
+  .play:hover{filter:brightness(1.06)} .play:active{transform:translateY(1px)}
+  .tcode{color:var(--paper)} .tcode .sep{color:var(--faint)}
+  .seg-now{color:var(--cyan);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .speed-now{margin-left:auto;color:var(--amber);border:1px solid var(--line);
+    border-radius:2px;padding:2px 8px;font-size:11px}
+
+  /* ---- inspector ---- */
+  .insp{display:flex;flex-direction:column;overflow-y:auto}
+  #inspBody{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+
+  /* per-segment ratio — the header's grammar, at segment scale */
+  .ratio-seg{display:flex;align-items:baseline;gap:8px;margin:0 0 8px;
+    font-variant-numeric:tabular-nums}
+  .ratio-seg .win{color:var(--faint);text-decoration:line-through;
+    text-decoration-color:var(--faint);font-size:12px}
+  .ratio-seg .arw{color:var(--amber-deep);font-size:10px;letter-spacing:-.05em}
+  .ratio-seg .out{color:var(--amber);font-weight:700;font-size:18px;
+    text-shadow:0 0 14px var(--amber-glow)}
+  .ratio-seg .on{color:var(--dim);font-size:10px}
+
+  /* window bar: play vs hold, live — replaces two sentences of prose */
+  .wbar{display:flex;height:9px;border:1px solid var(--line);border-radius:2px;
+    overflow:hidden;background:var(--inset)}
+  .wbar i{display:block;height:100%}
+  .wbar i.p{background:linear-gradient(180deg,var(--amber),var(--amber-deep))}
+  .wbar i.h{background:repeating-linear-gradient(45deg,
+    var(--amber-deep),var(--amber-deep) 3px,transparent 3px,transparent 6px);opacity:.8}
+  .wlegend{display:flex;justify-content:space-between;font-size:9.5px;
+    color:var(--faint);margin:3px 0 13px;font-variant-numeric:tabular-nums}
+
+  /* compact adjust rows — label left, control right */
+  .crow{display:flex;align-items:center;gap:10px;margin:0 0 8px}
+  .crow > label{width:42px;font-size:10px;color:var(--dim);letter-spacing:.14em;
+    text-transform:uppercase;flex:0 0 auto}
+  .cstep{display:flex;align-items:center;border:1px solid var(--line);
+    border-radius:3px;background:var(--inset);overflow:hidden}
+  .cstep button{background:var(--panel);border:none;color:var(--paper);
+    width:26px;height:23px;font-size:14px;cursor:pointer;padding:0}
+  .cstep button:hover{background:#182025;color:var(--amber)}
+  .cstep b{min-width:54px;text-align:center;color:var(--amber);font-size:13px;
+    font-weight:700;font-variant-numeric:tabular-nums}
+
+  /* one contextual hint slot, pinned to the bottom, fixed height */
+  .hintslot{margin-top:auto;border-top:1px solid var(--line);padding-top:9px;
+    font-size:10.5px;color:var(--dim);min-height:34px;line-height:1.55}
+  .hintslot.off{display:none}
+  .insp .empty{color:var(--dim);font-size:12px;padding:18px 2px;line-height:1.75}
+  .insp .empty .big{color:var(--paper);display:block;margin-bottom:6px}
+  .seg-title{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
+  .seg-title .id{color:var(--amber);font-weight:700;letter-spacing:.05em}
+  .seg-title .lab{color:var(--paper);font-size:12.5px}
+  .seg-sub{color:var(--dim);font-size:11px;margin-bottom:13px}
+  .field{margin:0 0 12px}
+  .field > label{display:block;font-size:10px;color:var(--dim);margin-bottom:6px}
+
+  /* IN/OUT are now nudgeable, with a live boundary preview */
+  .marks{display:flex;gap:8px}
+  .mark{flex:1;background:var(--inset);border:1px solid var(--line);border-radius:3px;
+    padding:6px 7px}
+  .mark.in{border-left:2px solid var(--green)} .mark.out{border-left:2px solid var(--red)}
+  .mark .ml{font-size:9px;color:var(--dim);letter-spacing:.16em;display:flex;align-items:center}
+  .mark .ml .snap{margin-left:auto;color:var(--faint);font-size:8.5px;letter-spacing:.08em}
+  .mark .row{display:flex;align-items:center;gap:4px;margin-top:3px}
+  .mark .mv{font-size:14px;color:var(--paper);font-variant-numeric:tabular-nums;
+    flex:1;text-align:center}
+  .nudge{background:var(--panel);border:1px solid var(--line);border-radius:2px;
+    color:var(--paper);width:22px;height:22px;font-size:12px;cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;padding:0}
+  .nudge:hover{border-color:var(--amber-deep);color:var(--amber)}
+
+  .stepper{display:flex;align-items:stretch;border:1px solid var(--line);
+    border-radius:3px;overflow:hidden;background:var(--inset);width:100%}
+  .stepper button{background:var(--panel);border:none;color:var(--paper);
+    width:32px;font-size:16px;cursor:pointer;border-right:1px solid var(--line)}
+  .stepper button:last-child{border-right:none;border-left:1px solid var(--line)}
+  .stepper button:hover{background:#182025;color:var(--amber)}
+  .stepper .val{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+    font-variant-numeric:tabular-nums}
+  .stepper .val b{font-size:15px;color:var(--amber);font-weight:700}
+  .stepper .val .un{font-size:10px;color:var(--dim)}
+  .ramp{display:flex;align-items:flex-end;gap:2px;height:14px}
+  .ramp i{width:3px;background:var(--amber-deep);border-radius:1px}
+
+  /* teaching copy that decays */
+  .hint{font-size:10.5px;color:var(--dim);margin-top:5px;line-height:1.5}
+  .hint.hidden{display:none}
+
+  /* solo / loop transport for one segment */
+  .solo-row{display:flex;gap:7px;align-items:center;margin:2px 0 13px}
+  .solo{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    background:rgba(90,209,230,.08);border:1px solid rgba(90,209,230,.45);
+    color:var(--cyan);border-radius:3px;padding:7px 10px;font-size:11.5px;
+    cursor:pointer;letter-spacing:.03em;font-weight:600}
+  .solo:hover{background:rgba(90,209,230,.16)}
+  .solo.on{background:var(--cyan);color:#06232a;border-color:var(--cyan)}
+  .loopb{background:var(--panel);border:1px solid var(--line);border-radius:3px;
+    color:var(--dim);padding:7px 10px;font-size:11px;cursor:pointer}
+  .loopb.on{border-color:var(--cyan);color:var(--cyan);background:rgba(90,209,230,.10)}
+
+  .seg-actions{display:flex;gap:7px;margin-top:14px;padding-top:12px;
+    border-top:1px solid var(--line)}
+  .btn{background:var(--panel);border:1px solid var(--line);border-radius:3px;
+    padding:6px 10px;font-size:11px;color:var(--paper);cursor:pointer;letter-spacing:.04em}
+  .btn:hover{border-color:var(--line-bright);background:#161d21}
+  .btn.danger:hover{border-color:var(--red);color:var(--red)}
+
+  /* ---- timeline ---- */
+  .timeline{grid-column:1 / -1;border-left:1px solid var(--line);
+    border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,var(--panel-2),var(--inset));padding:10px 14px 12px}
+  .tl-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .tl-head .idle{margin-left:auto;display:flex;align-items:center;gap:9px;
+    font-size:10px;color:var(--dim)}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:3px;width:110px;
+    background:var(--line-bright);border-radius:3px;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
+    border-radius:50%;background:var(--amber);cursor:pointer;box-shadow:0 0 8px var(--amber-glow)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border:none;border-radius:50%;
+    background:var(--amber);cursor:pointer}
+
+  .wave-wrap{position:relative;user-select:none}
+  .wave-wrap::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.16),rgba(0,0,0,.16) 1px,transparent 1px,transparent 3px);
+    mix-blend-mode:multiply;opacity:.5;border-radius:3px}
+  .ticks{display:flex;justify-content:space-between;font-size:9.5px;color:var(--faint);
+    margin-bottom:4px;font-variant-numeric:tabular-nums}
+  /* the activity lane is a SCRUB surface: inspect any source moment, including
+     the parts no segment keeps. Crosshair + hover guide make that discoverable. */
+  .wave{position:relative;height:78px;display:flex;align-items:flex-end;gap:1px;
+    background:var(--inset);border:1px solid var(--line);border-radius:3px 3px 0 0;
+    padding:0 3px;overflow:hidden;cursor:crosshair}
+  .scrub{position:absolute;top:0;height:78px;width:1px;background:var(--cyan);
+    opacity:.55;pointer-events:none;z-index:6;display:none}
+  .scrub.on{display:block}
+  .scrubchip{position:absolute;top:4px;transform:translateX(-50%);
+    background:rgba(10,13,15,.94);border:1px solid var(--line-bright);border-radius:2px;
+    padding:1px 7px;font-size:9.5px;white-space:nowrap;color:var(--paper);
+    font-variant-numeric:tabular-nums;pointer-events:none;z-index:7;display:none}
+  .scrubchip.on{display:block}
+  .scrubchip .kept{color:var(--amber)}
+  .scrubchip .dead{color:var(--dim)}
+  .scrubchip .miss{color:var(--cyan)}
+  /* turn inspection into action when you find something in a gap */
+  .cuthere{display:none;align-items:center;gap:6px;background:rgba(90,209,230,.10);
+    border:1px solid rgba(90,209,230,.5);color:var(--cyan);border-radius:3px;
+    padding:5px 11px;font-size:11px;cursor:pointer;font-weight:600}
+  .cuthere.on{display:inline-flex}
+  .cuthere:hover{background:rgba(90,209,230,.2)}
+  .wave .bar{flex:1 1 0;background:var(--faint);border-radius:1px 1px 0 0;min-width:0}
+  .wave .bar.keep{background:linear-gradient(180deg,var(--amber),var(--amber-deep));
+    box-shadow:0 0 6px var(--amber-glow)}
+  /* the cut lane is now a LABELLED, obviously-interactive surface */
+  .cutlane{position:relative;height:44px;background:#06090b;
+    border:1px solid var(--line);border-top:none;border-radius:0 0 3px 3px;
+    cursor:crosshair;overflow:hidden}
+  .cutlane .lane-tag{position:absolute;left:6px;top:4px;font-size:8.5px;
+    letter-spacing:.2em;color:var(--faint);pointer-events:none;z-index:2}
+  .cutlane .ghost{position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;color:var(--faint);font-size:10.5px;letter-spacing:.06em;
+    pointer-events:none;border:1px dashed var(--line-bright);margin:6px;border-radius:2px}
+  .band{position:absolute;top:6px;bottom:6px;border:1px solid var(--amber-deep);
+    border-radius:2px;background:rgba(255,180,84,.10);cursor:pointer;transition:background .12s}
+  .band:hover{background:rgba(255,180,84,.18)}
+  .band.sel{border-color:var(--amber);background:rgba(255,180,84,.22);
+    box-shadow:0 0 0 1px var(--amber),0 0 18px var(--amber-glow)}
+  .band .tab{position:absolute;top:3px;left:5px;font-size:9px;color:var(--amber);
+    letter-spacing:.08em;white-space:nowrap;pointer-events:none}
+  .band .grip{position:absolute;top:0;bottom:0;width:5px;cursor:ew-resize}
+  .band .grip.l{left:-1px;border-left:2px solid var(--green)}
+  .band .grip.r{right:-1px;border-right:2px solid var(--red)}
+  .deadair{position:absolute;top:50%;transform:translateY(-50%);
+    display:flex;align-items:center;justify-content:center;font-size:10px;
+    color:var(--dim);white-space:nowrap;pointer-events:none;overflow:hidden}
+  .deadair .pill{display:inline-flex;align-items:center;gap:5px;
+    background:rgba(10,13,15,.72);border:1px solid var(--line);border-radius:2px;padding:1px 7px}
+  .deadair .sc{color:var(--amber-deep)}
+  .playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--cyan);
+    box-shadow:0 0 10px var(--cyan-glow);pointer-events:none;z-index:5}
+  /* solo range shading over the non-soloed parts */
+  .solomask{position:absolute;top:0;bottom:0;background:rgba(5,7,8,.68);
+    pointer-events:none;z-index:4}
+
+  /* ================= 2. CONTACT SHEET ================= */
+  .sheet-h2{display:flex;align-items:center;gap:8px;margin:11px 0 7px}
+  .sheet-h2 .k{font-size:10px;color:var(--dim)}
+  .sheet-h2 .rule{flex:1;height:1px;background:repeating-linear-gradient(
+    90deg,var(--line),var(--line) 4px,transparent 4px,transparent 7px)}
+  /* leader lines tie each thumbnail to the segment band above it */
+  .leaders{display:block;width:100%;height:15px;overflow:visible}
+  .leaders line{stroke:var(--line-bright);stroke-width:1}
+  .leaders line.sel{stroke:var(--amber);stroke-width:1.5}
+  .leaders circle{fill:var(--line-bright)}
+  .leaders circle.sel{fill:var(--amber)}
+
+  /* thumbnails are TIME-ANCHORED: each sits under its own segment */
+  .contact{position:relative;height:116px}
+  .shot{
+    position:absolute;top:0;width:150px;
+    border:1px solid var(--line);border-radius:3px;overflow:hidden;
+    background:var(--inset);cursor:pointer;
+    transition:border-color .14s,transform .1s;
+  }
+  .shot:hover{border-color:var(--line-bright);transform:translateY(-1px)}
+  .shot.sel{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber),0 0 20px var(--amber-glow)}
+  .shot .thumb{height:86px;background:var(--d-bg);overflow:hidden;position:relative;
+    border-bottom:1px solid #000}
+  .shot .thumb .mini{transform:scale(.42);transform-origin:top left;width:238%;
+    font-size:12px;line-height:1.45;padding:6px 8px;white-space:pre;color:var(--d-fg)}
+  .shot .zoom{position:absolute;top:5px;right:5px;background:rgba(10,13,15,.82);
+    border:1px solid var(--line-bright);border-radius:2px;color:var(--paper);
+    width:21px;height:21px;font-size:11px;cursor:pointer;opacity:0;transition:opacity .14s;
+    display:inline-flex;align-items:center;justify-content:center;padding:0;z-index:3}
+  .shot:hover .zoom{opacity:1}
+  .shot .zoom:hover{border-color:var(--amber);color:var(--amber)}
+  .shot .meta{padding:5px 8px 6px;display:flex;align-items:baseline;gap:6px}
+  .shot .meta .sid{color:var(--amber);font-weight:700;font-size:11px;letter-spacing:.05em}
+  .shot .meta .slab{color:var(--dim);font-size:10px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .shot .meta .sdur{color:var(--paper);font-size:10px;font-variant-numeric:tabular-nums}
+  .shot .playdot{position:absolute;left:5px;top:5px;width:7px;height:7px;border-radius:50%;
+    background:var(--cyan);box-shadow:0 0 8px var(--cyan-glow);opacity:0;z-index:3}
+  .shot.soloing .playdot{opacity:1}
+  .contact-empty{color:var(--faint);font-size:11px;padding:14px 2px}
+
+  /* strip axis toggle: declares what the horizontal axis MEANS */
+  .capbar{display:flex;align-items:center;gap:10px;margin-top:3px}
+  .stripmode{display:inline-flex;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+  .stripmode button{background:var(--panel);border:none;color:var(--dim);
+    font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;padding:3px 9px;
+    cursor:pointer;border-right:1px solid var(--line)}
+  .stripmode button:last-child{border-right:none}
+  .stripmode button:hover{color:var(--paper)}
+  .stripmode button.on{background:rgba(255,180,84,.12);color:var(--amber)}
+  .stripmode button.auto{background:rgba(90,209,230,.14);color:var(--cyan)}
+
+  /* cut-order extras */
+  .shot .ord{position:absolute;left:5px;top:5px;z-index:3;background:rgba(10,13,15,.9);
+    border:1px solid var(--line-bright);border-radius:2px;color:var(--paper);
+    font-size:9px;padding:0 5px;letter-spacing:.06em}
+  .shot.playing{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan),0 0 20px var(--cyan-glow)}
+  .shot.dragging{opacity:.55;z-index:9}
+  .contact.cutmode .shot{cursor:grab}
+  .contact.cutmode .shot:active{cursor:grabbing}
+  .reorder{position:absolute;bottom:5px;right:5px;display:none;gap:3px;z-index:4}
+  .shot.sel .reorder{display:flex}
+  .reorder button{background:rgba(10,13,15,.9);border:1px solid var(--line-bright);
+    border-radius:2px;color:var(--paper);width:19px;height:19px;font-size:11px;
+    cursor:pointer;padding:0;line-height:1}
+  .reorder button:hover{border-color:var(--amber);color:var(--amber)}
+  .reorder button:disabled{opacity:.3;cursor:not-allowed}
+
+  /* lightbox for the enlarged frame */
+  .lightbox{position:fixed;inset:0;background:rgba(5,7,8,.82);backdrop-filter:blur(4px);
+    display:none;align-items:center;justify-content:center;z-index:70;padding:26px}
+  .lightbox.open{display:flex}
+  .lb-card{width:min(860px,100%);background:var(--panel);border:1px solid var(--line-bright);
+    border-radius:6px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .lb-h{display:flex;align-items:center;gap:10px;padding:11px 14px;
+    border-bottom:1px solid var(--line);background:var(--panel-2)}
+  .lb-h .sid{color:var(--amber);font-weight:700;letter-spacing:.05em}
+  .lb-h .x{margin-left:auto;background:none;border:1px solid var(--line);border-radius:3px;
+    width:26px;height:26px;color:var(--dim);cursor:pointer}
+  .lb-h .x:hover{color:var(--red);border-color:var(--red)}
+  .lb-b{background:var(--d-bg);padding:16px 18px;font-size:13px;line-height:1.5;
+    white-space:pre;overflow:auto;color:var(--d-fg)}
+  .lb-b .cmt{color:var(--d-comment)} .lb-b .grn{color:var(--d-green)}
+  .lb-b .cyn{color:var(--d-cyan)} .lb-b .pnk{color:var(--d-pink)}
+  .lb-b .pur{color:var(--d-purple)} .lb-b .org{color:var(--d-orange)}
+  .lb-b .yel{color:var(--d-yellow)} .lb-b .red{color:var(--d-red)}
+  .lb-b .cur{background:var(--d-fg);color:var(--d-bg)}
+  .lb-f{display:flex;gap:9px;align-items:center;padding:11px 14px;
+    border-top:1px solid var(--line);background:var(--panel-2);color:var(--dim);font-size:11px}
+
+  /* ================= footer: keybinds collapse behind "?" ================= */
+  footer.status{display:flex;align-items:center;gap:9px;flex:0 0 auto;
+    border:1px solid var(--line);border-top:1px solid var(--line-bright);
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border-radius:0 0 var(--r) var(--r);padding:7px 12px;font-size:11px}
+  .chip{background:var(--panel);border:1px solid var(--line);border-radius:3px;
+    color:var(--dim);padding:3px 9px;font-size:10.5px;cursor:pointer;letter-spacing:.06em}
+  .chip:hover{border-color:var(--line-bright);color:var(--paper)}
+  .chip.on{border-color:var(--amber-deep);color:var(--amber)}
+  .keys{display:none;align-items:center;gap:2px;flex-wrap:wrap}
+  .keys.on{display:flex}
+  .kb{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;color:var(--dim);
+    border-right:1px solid var(--line)}
+  .kb:last-child{border-right:none}
+  .kb b{color:var(--amber);font-weight:600}
+  .kb key{display:inline-block;min-width:15px;text-align:center;
+    border:1px solid var(--line-bright);border-bottom-width:2px;border-radius:3px;
+    padding:0 4px;color:var(--paper);font-size:10px;background:var(--inset)}
+  .status .live{margin-left:auto;display:inline-flex;align-items:center;gap:7px;color:var(--dim)}
+  .status .live .rec{width:7px;height:7px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 8px rgba(127,217,127,.5)}
+  .status .live .rec.unsaved{background:var(--amber);box-shadow:0 0 8px var(--amber-glow)}
+  .exp-btn{background:var(--amber);color:#1a1206;border:none;border-radius:3px;
+    padding:5px 13px;font-weight:700;font-size:11px;letter-spacing:.05em;cursor:pointer;
+    box-shadow:0 0 0 1px var(--amber-deep)}
+  .exp-btn:hover{filter:brightness(1.06)}
+
+  /* ---- export drawer ---- */
+  .drawer{position:fixed;inset:0;background:rgba(5,7,8,.72);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
+  .drawer.open{display:flex}
+  .sheet{width:min(700px,100%);background:var(--panel);border:1px solid var(--line-bright);
+    border-radius:6px;box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden}
+  .sheet-h{display:flex;align-items:center;gap:10px;padding:12px 15px;
+    border-bottom:1px solid var(--line);background:var(--panel-2)}
+  .sheet-h .x{margin-left:auto;background:none;border:1px solid var(--line);border-radius:3px;
+    width:26px;height:26px;color:var(--dim);cursor:pointer}
+  .sheet-b{padding:15px}
+  .fmt-row{display:flex;gap:9px;margin-bottom:13px}
+  .fmt{flex:1;background:var(--inset);border:1px solid var(--line);border-radius:3px;
+    padding:9px;text-align:center;cursor:pointer;font-size:12px}
+  .fmt:hover{border-color:var(--line-bright)}
+  .fmt.on{background:var(--amber);color:#1a1206;border-color:var(--amber);font-weight:700}
+  .fmt .fs{display:block;font-size:9.5px;opacity:.75;margin-top:2px}
+  .prog{height:5px;background:var(--inset);border:1px solid var(--line);border-radius:3px;
+    overflow:hidden;margin-bottom:8px}
+  .prog i{display:block;height:100%;width:0;background:var(--amber);transition:width .2s}
+  .prog.done i{background:var(--green)}
+  .plabel{font-size:10.5px;color:var(--dim);margin-bottom:12px}
+  .outline{background:var(--inset);border-left:2px solid var(--amber);border-radius:3px;
+    padding:9px 11px;font-size:11px;color:var(--paper)}
+  .sheet-f{display:flex;gap:9px;align-items:center;padding:12px 15px;
+    border-top:1px solid var(--line);background:var(--panel-2)}
+  .sheet-f .go{background:var(--amber);color:#1a1206;border:none;border-radius:3px;
+    padding:8px 15px;font-weight:700;cursor:pointer}
+  .sheet-f .note{color:var(--dim);font-size:10.5px}
+
+  /* ---- coach mark (shown once) ---- */
+  .coach{position:absolute;z-index:8;background:var(--panel);border:1px solid var(--amber-deep);
+    border-left:3px solid var(--amber);border-radius:3px;padding:8px 11px;font-size:11px;
+    box-shadow:0 12px 30px rgba(0,0,0,.55);max-width:290px;line-height:1.55}
+  .coach b{color:var(--amber)}
+  .coach .dismiss{display:block;margin-top:7px;background:none;border:none;padding:0;
+    color:var(--dim);font-size:10.5px;cursor:pointer;text-decoration:underline}
+  .coach.gone{display:none}
+
+  /* ---- toasts ---- */
+  #toasts{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:90;
+    display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+  .toast{background:var(--panel);border:1px solid var(--line-bright);
+    border-left:2px solid var(--amber);border-radius:3px;padding:7px 13px;font-size:11.5px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5);animation:rise .25s ease both}
+  .toast .g{color:var(--amber)}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}}
+
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+</style>
+</head>
+<body>
+
+<!-- ============ 1. WELCOME (replaces the 5-negatives empty screen) ============ -->
+<div class="welcome" id="welcome">
+  <div class="wel-card">
+    <div class="wel-brand">
+      <span class="dot"></span><b>castcut</b>
+      <span class="tag u">cutting&nbsp;room</span>
+    </div>
+    <p class="wel-lede">
+      Cut the dead air out of terminal recordings —<br>
+      and <span class="hi">see what you're removing</span>.
+    </p>
+
+    <div class="wel-acts">
+      <button class="wel-btn primary" id="welSample">
+        <span class="t"><span class="ic">▸</span> Try the sample</span>
+        <span class="s">A real 17-minute agent sprint.<br>Best way to see what castcut does.</span>
+      </button>
+      <button class="wel-btn" id="welOpen">
+        <span class="t"><span class="ic">◈</span> Open a recording…</span>
+        <span class="s">Choose a <code>.cast</code> file.<br><span class="mut">⌘O</span></span>
+      </button>
+    </div>
+
+    <div class="wel-recent">
+      <div class="rl u">Recent</div>
+      <div class="wel-row" data-recent="forge_sprint.cast">
+        <span class="mut">◈</span><span class="nm">forge_sprint.cast</span>
+        <span class="mt">17:04 · 2 days ago</span>
+      </div>
+      <div class="wel-row" data-recent="deploy_walkthrough.cast">
+        <span class="mut">◈</span><span class="nm">deploy_walkthrough.cast</span>
+        <span class="mt">4:12 · last week</span>
+      </div>
+    </div>
+
+    <div class="wel-foot">castcut 0.1.0 · MIT © Entelligentsia · Help → Keyboard shortcuts</div>
+  </div>
+</div>
+
+<!-- ============ EDITOR ============ -->
+<div class="app hidden" id="app">
+
+  <header class="clapper">
+    <div class="brand"><span class="dot"></span><b>castcut</b></div>
+    <div class="file">
+      <span class="dirty" id="dirtyDot" style="display:none">●</span>
+      <span class="name" id="fileName">forge_sprint.cast</span>
+    </div>
+    <div class="ratio">
+      <span class="raw" id="rawTime">17:04</span>
+      <span class="arrow">──▶</span>
+      <span class="cut" id="cutTime">0:41</span>
+      <span class="pct" id="pctCut">96% trimmed</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- PREVIEW -->
+    <section class="pane preview">
+      <div class="pane-h">
+        <span class="k u amber">◆ preview</span>
+        <span class="rule"></span>
+      </div>
+      <div class="frame">
+        <div class="titlebar">
+          <span class="tl-dot r"></span><span class="tl-dot y"></span><span class="tl-dot g"></span>
+          <span class="t" id="tbTitle">forge_sprint.cast — composed</span>
+          <span class="badge u" id="tbBadge">solo S1</span>
+        </div>
+        <div class="screen" id="screen"></div>
+      </div>
+      <div class="transport">
+        <button class="play" id="playBtn">▶&nbsp;&nbsp;Play cut</button>
+        <span class="tcode"><span id="phTime">0:00</span> <span class="sep">/</span> <span id="phTotal">0:41</span></span>
+        <span class="seg-now" id="segNow">▸ S1 · sprint command fires</span>
+        <button class="cuthere" id="cutHere">✂ cut here</button>
+        <span class="speed-now" id="speedNow">1.0×</span>
+      </div>
+    </section>
+
+    <!-- INSPECTOR -->
+    <section class="pane insp">
+      <div class="pane-h">
+        <span class="k u amber">◆ segment</span>
+        <span class="k mut" id="inspCount">4 kept</span>
+        <span class="rule"></span>
+      </div>
+      <div id="inspBody"></div>
+    </section>
+
+    <!-- TIMELINE + CONTACT SHEET -->
+    <section class="timeline">
+      <div class="tl-head">
+        <span class="k u amber">◆ activity</span>
+        <span class="k mut hint-copy">dead air is flat · <span class="cyan">click anywhere to inspect the source</span></span>
+        <div class="idle">
+          <span class="u">idle&nbsp;cap</span>
+          <input type="range" id="idle" min="0.2" max="2" step="0.1" value="0.4" />
+          <span id="idleVal" style="color:var(--amber);width:32px">0.4s</span>
+        </div>
+      </div>
+
+      <div class="ticks" id="ticks"></div>
+      <div class="wave-wrap">
+        <div class="wave" id="wave"></div>
+        <div class="scrub" id="scrub"></div>
+        <div class="scrubchip" id="scrubchip"></div>
+        <div class="cutlane" id="cutlane">
+          <span class="lane-tag u">cuts</span>
+          <div id="overlay"></div>
+        </div>
+        <div class="playhead" id="ph" style="left:0"></div>
+        <div class="coach gone" id="coach" style="left:16px;top:88px">
+          This is your whole recording as one clip.<br>
+          Drag its <b>edges to trim</b>, or drag on this lane to <b>cut a new piece</b>.
+          <button class="dismiss" id="coachX">Got it</button>
+        </div>
+      </div>
+
+      <svg class="leaders" id="leaders" aria-hidden="true"></svg>
+      <div class="contact" id="contact"></div>
+      <div class="capbar">
+        <span class="stripmode" id="stripMode">
+          <button data-mode="source" class="on">source</button>
+          <button data-mode="cut">cut order</button>
+        </span>
+        <span class="k mut hint-copy" id="contactCap" style="font-size:10px"></span>
+      </div>
+    </section>
+  </main>
+
+  <footer class="status">
+    <button class="chip" id="keysToggle">? keys</button>
+    <div class="keys" id="keys">
+      <span class="kb"><key>␣</key> <b>play</b></span>
+      <span class="kb"><key>↵</key> <b>solo</b></span>
+      <span class="kb"><key>[</key><key>]</key> seg</span>
+      <span class="kb"><key>,</key><key>.</key> nudge in</span>
+      <span class="kb"><key>s</key> speed</span>
+      <span class="kb"><key>h</key> hold</span>
+      <span class="kb"><key>x</key> <span style="color:var(--red)">cut</span></span>
+      <span class="kb"><key>e</key> <b>export</b></span>
+    </div>
+    <button class="chip" id="hintsToggle">hints on</button>
+    <span class="live"><span class="rec" id="recDot"></span><span id="saveState">saved</span></span>
+    <button class="exp-btn u" id="openExport">Export cut →</button>
+  </footer>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true">
+  <div class="lb-card">
+    <div class="lb-h">
+      <span class="sid" id="lbId">S1</span><span class="mut" id="lbLab"></span>
+      <button class="x" id="lbClose">✕</button>
+    </div>
+    <div class="lb-b" id="lbBody"></div>
+    <div class="lb-f"><span id="lbMeta"></span></div>
+  </div>
+</div>
+
+<!-- EXPORT -->
+<div class="drawer" id="drawer" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="sheet-h">
+      <span class="amber">◆</span><b class="u">Export cut</b>
+      <span class="mut" style="font-size:11px">renders with the bundled agg → ffmpeg</span>
+      <button class="x" id="closeExport">✕</button>
+    </div>
+    <div class="sheet-b">
+      <div class="fmt-row">
+        <button class="fmt on" data-fmt="mp4">.mp4<span class="fs">h.264</span></button>
+        <button class="fmt" data-fmt="webm">.webm<span class="fs">vp9</span></button>
+        <button class="fmt" data-fmt="gif">.gif<span class="fs">loop</span></button>
+      </div>
+      <div class="prog" id="prog"><i></i></div>
+      <div class="plabel" id="plabel">Ready — writes the composed cast, then renders.</div>
+      <div class="outline" id="outline">forge_sprint.mp4 &nbsp;<span class="mut">·</span>&nbsp; <span class="amber" id="oDur">0:41</span> <span class="mut">· 4 segments · also writes .cast + .castcut.json</span></div>
+    </div>
+    <div class="sheet-f">
+      <button class="go" id="doExport">▸ Render mp4</button>
+      <button class="btn" id="saveProj">Save project</button>
+      <span class="note">bundled agg → ffmpeg · no prerequisites</span>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+(() => {
+  "use strict";
+  const SRC_LEN = 1024, BUCKETS = 176, BEAT = 0.5;
+  const el = id => document.getElementById(id);
+  const mmss = s => { s=Math.max(0,Math.round(s)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); };
+  /* mm:ss.ss — same unit as everywhere else in the panel, but keeps the
+     sub-second precision nudging needs (no raw-seconds leak). */
+  const mmssx = s => { s=Math.max(0,s); const m=Math.floor(s/60);
+    return m+":"+(s-m*60).toFixed(2).padStart(5,"0"); };
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+  const segs = [
+    { id:"S1", label:"sprint command fires",           in:25,  out:31,  activeLen:5,  speed:1.0, hold:0.0 },
+    { id:"S2", label:"orchestrator dashboard opens",   in:472, out:504, activeLen:13, speed:2.0, hold:1.5 },
+    { id:"S3", label:"cache/cost lens · full pipeline",in:618, out:646, activeLen:11, speed:2.0, hold:1.5 },
+    { id:"S4", label:"8-phase transcript payoff",      in:916, out:947, activeLen:18, speed:1.0, hold:3.0 },
+  ];
+
+  let sel="S1", idleCap=0.4, playing=false, phFrac=0, dirty=false;
+  let soloId=null, looping=true, hintsOn=true;
+  const used={speed:false,hold:false,nudge:false};
+
+  /* event grid — the honest "unit" for nudging: real event timestamps */
+  const EVENTS=(()=>{const e=[];for(let t=0;t<SRC_LEN;t+=0.37)e.push(+t.toFixed(2));return e;})();
+  const snapNext=t=>EVENTS.find(x=>x>t+0.01)??t;
+  const snapPrev=t=>[...EVENTS].reverse().find(x=>x<t-0.01)??t;
+
+  const frames = {
+    S1:`<span class="cmt">~/src/sample-projects/cartographer (main)</span>
+<span class="grn">$</span> forge <span class="cyn">sprint</span> --plan sprints/03-cartographer.md<span class="cur"> </span>
+
+<span class="org">⚡</span> <span class="pur">kindling forge</span>  <span class="cmt">·  16 cmds · 4 skills</span>
+<span class="cmt">────────────────────────────────────────────────────</span>
+  parsing sprint plan   <span class="grn">✓</span> 11 tasks across 3 phases
+  spawning orchestrator <span class="grn">✓</span>
+  <span class="yel">⠋</span> allocating agents <span class="cmt">(ollama-cloud · glm-5.2)</span>`,
+    S2:`<span class="pur">╭─ orchestrator ─────────────────────────────╮</span>
+<span class="pur">│</span> phase 1/3  <span class="cyn">scaffold</span>          <span class="grn">▰▰▰▰▰▱▱▱</span> 62% <span class="pur">│</span>
+<span class="pur">│</span> phase 2/3  <span class="cmt">bind + route</span>      <span class="cmt">▱▱▱▱▱▱▱▱</span>  0% <span class="pur">│</span>
+<span class="pur">│</span> phase 3/3  <span class="cmt">verify</span>            <span class="cmt">▱▱▱▱▱▱▱▱</span>  0% <span class="pur">│</span>
+<span class="pur">├─────────────────────────────────────────────┤</span>
+<span class="pur">│</span> <span class="org">tsc</span> 0 err  <span class="org">eslint</span> 0  <span class="grn">tests 14/14</span>       <span class="pur">│</span>
+<span class="pur">╰─────────────────────────────────────────────╯</span>
+  <span class="cyn">▸</span> agent-2 wrote <span class="grn">src/tiles/provider.ts</span> <span class="cmt">(+142)</span>`,
+    S3:`<span class="yel">cache / cost lens</span>  <span class="cmt">— last 6m</span>
+<span class="cmt">────────────────────────────────────────────────────</span>
+  cache hits    <span class="grn">████████████████░░░░</span>  81%
+  input tokens  <span class="cyn">1.24M</span>   output <span class="cyn">312K</span>
+  est. cost     <span class="grn">$0.94</span>  <span class="cmt">(cached $3.10 saved)</span>
+
+  <span class="pur">pipeline</span>  scaffold <span class="grn">→</span> bind <span class="grn">→</span> route <span class="grn">→</span> <span class="yel">verify</span>
+            <span class="grn">✓          ✓        ✓        ⠹</span>`,
+    S4:`<span class="pnk">◆ transcript</span> <span class="cmt">— 8 phases · glm-5.2</span>
+<span class="cmt">────────────────────────────────────────────────────</span>
+ 1 <span class="grn">✓</span> intake        5 <span class="grn">✓</span> implement
+ 2 <span class="grn">✓</span> plan          6 <span class="grn">✓</span> verify
+ 3 <span class="grn">✓</span> decompose     7 <span class="grn">✓</span> review
+ 4 <span class="grn">✓</span> allocate      8 <span class="grn">✓</span> <span class="yel">land</span>
+<span class="cmt">────────────────────────────────────────────────────</span>
+ <span class="grn">sprint complete</span>  <span class="cmt">11/11 tasks · 3 phases ·</span> <span class="cyn">4m 12s</span><span class="cur"> </span>`
+  };
+
+  /* ---------- source inspection ----------
+     The activity lane can be scrubbed anywhere, including stretches no segment
+     keeps. Two of those stretches hide real activity (the isolated spikes in
+     the waveform) — finding them is exactly why inspecting unkept regions
+     matters, so scrubbing there offers to cut. */
+  const spikes=[
+    { t:(58/BUCKETS)*SRC_LEN, frame:
+`<span class="red">✗ FAIL</span> <span class="cmt">tests/tiles/provider.spec.ts</span>
+<span class="cmt">────────────────────────────────────────────────────</span>
+  expected <span class="grn">"z/x/y.png"</span>
+  received <span class="red">"z/x/y.png?v=undefined"</span>
+
+  <span class="yel">⚠</span> agent-2 retrying with a patched template…` },
+    { t:(131/BUCKETS)*SRC_LEN, frame:
+`<span class="org">⟳ rate limited</span> <span class="cmt">— backing off 30s</span>
+<span class="cmt">────────────────────────────────────────────────────</span>
+  provider   <span class="cyn">ollama-cloud</span>
+  retry in   <span class="yel">00:24</span>
+
+  <span class="cmt">(worth keeping? scrub found it — cut here)</span>` },
+  ];
+  const deadFrame=
+`<span class="cmt">  ⠙  glm-5.2 thinking…</span>
+
+<span class="cmt">  waiting on model · nothing on screen</span>
+<span class="cmt">  ── dead air ──────────────────────────</span>
+
+<span style="color:var(--faint)">  (this is what castcut cuts for you)</span>`;
+
+  /* what is the source showing at time t, and is it kept? */
+  function statusAt(t){
+    const s=inSeg(t);
+    if(s) return {kind:"kept", label:s.id+" · "+s.label, frame:frames[s.id], seg:s};
+    const sp=spikes.find(x=>Math.abs(x.t-t)<12);
+    if(sp) return {kind:"miss", label:"unkept activity", frame:sp.frame};
+    return {kind:"dead", label:"dead air", frame:deadFrame};
+  }
+
+  /* ---------- derived timing ---------- */
+  const idleScale = () => 0.82 + (idleCap-0.4)*0.14;
+  const segOut = s => (s.activeLen*idleScale())/s.speed + s.hold;
+  const cutDuration = () => segs.reduce((t,s,i)=>t+(i>0?BEAT:0)+segOut(s),0);
+  function segCutStart(idx){ let a=0; for(let i=0;i<idx;i++){ a+=segOut(segs[i]); a+=BEAT; } return a; }
+  const byId = id => segs.find(s=>s.id===id);
+  const idxOf = id => segs.findIndex(s=>s.id===id);
+
+  /* ---------- waveform ---------- */
+  const inSeg = t => segs.find(s=>t>=s.in&&t<=s.out);
+  const wave=(()=>{const a=new Array(BUCKETS).fill(0);
+    for(let i=0;i<BUCKETS;i++){const t=(i/BUCKETS)*SRC_LEN;
+      let v=0.04+0.03*Math.abs(Math.sin(i*1.7));
+      segs.forEach(s=>{ if(t>=s.in-2&&t<=s.out+2){
+        const mid=(s.in+s.out)/2,half=(s.out-s.in)/2+2,d=Math.abs(t-mid)/half;
+        v=Math.max(v,(1-d*d)*(0.72+0.28*Math.abs(Math.sin(i*2.3))));}});
+      if(i===58||i===131)v=Math.max(v,0.34); a[i]=Math.min(1,v);} return a;})();
+
+  function buildWave(){
+    const w=el("wave"); w.innerHTML="";
+    wave.forEach((v,i)=>{const t=(i/BUCKETS)*SRC_LEN;const b=document.createElement("div");
+      b.className="bar"+(inSeg(t)?" keep":""); b.style.height=(6+v*88)+"%"; w.appendChild(b);});
+    const tk=el("ticks"); tk.innerHTML="";
+    ["0:00","3:24","6:49","10:14","13:38","17:04"].forEach(l=>{
+      const s=document.createElement("span"); s.textContent=l; tk.appendChild(s);});
+  }
+
+  const pct = t => (t/SRC_LEN)*100;
+
+  function drawOverlay(){
+    const ov=el("overlay"); ov.innerHTML="";
+    if(!segs.length){ ov.innerHTML=`<div class="ghost">drag here to cut a segment</div>`; return; }
+    const gaps=[]; let prev=0;
+    segs.forEach(s=>{ gaps.push([prev,s.in]); prev=s.out; }); gaps.push([prev,SRC_LEN]);
+    gaps.forEach(([a,b])=>{ if(b-a<60)return;
+      const d=document.createElement("div"); d.className="deadair";
+      d.style.left=pct(a)+"%"; d.style.width=pct(b-a)+"%";
+      d.innerHTML=`<span class="pill"><span class="sc">✂</span> ${mmss(b-a)}</span>`;
+      ov.appendChild(d);});
+    segs.forEach(s=>{
+      const band=document.createElement("div");
+      band.className="band"+(s.id===sel?" sel":"");
+      band.style.left=pct(s.in)+"%"; band.style.width=pct(s.out-s.in)+"%";
+      band.innerHTML=`<span class="grip l"></span>
+        <span class="tab">${s.id} · ${s.speed.toFixed(1)}×${s.hold?" ⏸"+s.hold+"s":""}</span>
+        <span class="grip r"></span>`;
+      band.addEventListener("click",e=>{e.stopPropagation();selectSeg(s.id);});
+      ov.appendChild(band);
+    });
+    if(soloId){
+      const s=byId(soloId);
+      const m1=document.createElement("div"); m1.className="solomask";
+      m1.style.left="0"; m1.style.width=pct(s.in)+"%"; ov.appendChild(m1);
+      const m2=document.createElement("div"); m2.className="solomask";
+      m2.style.left=pct(s.out)+"%"; m2.style.right="0"; ov.appendChild(m2);
+    }
+  }
+
+  /* ---------- 2. CONTACT SHEET (median frame per segment) ---------- */
+  const THUMB_W = 150, THUMB_GAP = 7;
+
+  /* ---------- strip axis mode ----------
+     source  → x means TIME (anchored under each band, leader lines)
+     cut     → x means SEQUENCE (packed in playback order, drag to re-sequence)
+     Playback auto-switches to `cut` for coherence, then restores the user's
+     own choice; a manual toggle during playback wins and stops auto-managing. */
+  let stripMode="source", userStripMode="source", autoSwitched=false;
+
+  function setStripMode(m,{auto=false}={}){
+    stripMode=m;
+    if(!auto){ userStripMode=m; autoSwitched=false; }
+    document.querySelectorAll("#stripMode button").forEach(b=>{
+      b.classList.toggle("on",b.dataset.mode===m && !(auto&&m==="cut"));
+      b.classList.toggle("auto",auto&&m==="cut"&&b.dataset.mode==="cut");
+    });
+    el("contact").classList.toggle("cutmode",m==="cut");
+    el("leaders").style.visibility = m==="cut"?"hidden":"visible";
+    el("contactCap").textContent = m==="cut"
+      ? "playback order · drag a card to re-sequence · ← → on the selected card"
+      : "one frame per kept segment, under its own cut · click to select · ⤢ to enlarge";
+    drawContact();
+  }
+  document.querySelectorAll("#stripMode button").forEach(b=>
+    b.addEventListener("click",()=>setStripMode(b.dataset.mode)));
+
+  function autoStripForPlayback(on){
+    if(on){ if(stripMode!=="cut"){ autoSwitched=true; setStripMode("cut",{auto:true}); } }
+    else if(autoSwitched){ autoSwitched=false; setStripMode(userStripMode); }
+  }
+
+  /* move a segment earlier/later in PLAYBACK order (mirrors shipped moveByStep) */
+  function moveByStep(id,dir){
+    const i=segs.findIndex(s=>s.id===id), j=i+dir;
+    if(i<0||j<0||j>=segs.length) return;
+    const [m]=segs.splice(i,1); segs.splice(j,0,m);
+    setDirty(true); refresh();
+    toast(`▸ ${id} moved ${dir<0?"earlier":"later"} · position ${j+1}`);
+  }
+
+  function drawContact(){
+    const c=el("contact"), lead=el("leaders");
+    c.innerHTML=""; lead.innerHTML="";
+    if(!segs.length){ c.innerHTML=`<div class="contact-empty">No segments yet.</div>`; return; }
+    segs.forEach(s=>{
+      const card=document.createElement("div");
+      card.className="shot"+(s.id===sel?" sel":"")+(s.id===soloId?" soloing":"");
+      card.dataset.id=s.id;
+      const median=((s.in+s.out)/2);
+      const pos=segs.indexOf(s);
+      card.innerHTML=`
+        <div class="thumb">
+          <span class="playdot"></span>
+          ${stripMode==="cut"?`<span class="ord">${pos+1}</span>`:""}
+          <button class="zoom" title="Enlarge (median frame @ ${mmss(median)})">⤢</button>
+          <div class="mini">${frames[s.id]}</div>
+          ${stripMode==="cut"?`<span class="reorder">
+            <button data-mv="-1" title="Move earlier (Shift+[)" ${pos===0?"disabled":""}>←</button>
+            <button data-mv="1" title="Move later (Shift+])" ${pos===segs.length-1?"disabled":""}>→</button>
+          </span>`:""}
+        </div>
+        <div class="meta">
+          <span class="sid">${s.id}</span>
+          <span class="slab">${s.label}</span>
+          <span class="sdur">${segOut(s).toFixed(1)}s</span>
+        </div>`;
+      card.querySelectorAll("[data-mv]").forEach(b=>b.addEventListener("click",e=>{
+        e.stopPropagation(); moveByStep(s.id,+b.dataset.mv);
+      }));
+      if(stripMode==="cut") wireDrag(card,s);
+      card.addEventListener("click",()=>selectSeg(s.id));
+      card.addEventListener("dblclick",()=>toggleSolo(s.id));
+      card.querySelector(".zoom").addEventListener("click",e=>{e.stopPropagation();openLightbox(s);});
+      c.appendChild(card);
+    });
+    layoutContact();
+  }
+
+  /* Anchor each thumbnail under its own segment. Where segments sit closer
+     together than a thumbnail is wide, push the thumbnails apart and let a
+     leader line carry the association instead. */
+  function layoutContact(){
+    const c=el("contact"), lead=el("leaders");
+    if(!segs.length) return;
+    const W=c.clientWidth; if(!W) return;
+    const half=THUMB_W/2;
+
+    // CUT ORDER: x means sequence — pack left-to-right in playback order.
+    if(stripMode==="cut"){
+      lead.innerHTML="";
+      const total=segs.length*THUMB_W+(segs.length-1)*THUMB_GAP;
+      const x0=Math.max(0,(W-total)/2);
+      segs.forEach((s,i)=>{
+        const card=c.querySelector(`.shot[data-id="${s.id}"]`);
+        if(card&&!card.classList.contains("dragging"))
+          card.style.left=(x0+i*(THUMB_W+THUMB_GAP))+"px";
+      });
+      return;
+    }
+
+    // desired centre = the band's own centre, in the same px space as the lane
+    const items=segs.map(s=>{
+      const want=((s.in+s.out)/2/SRC_LEN)*W;
+      return { s, want, x:clamp(want,half,W-half) };
+    });
+    // left→right: shove overlapping neighbours right
+    for(let i=1;i<items.length;i++){
+      const minX=items[i-1].x+THUMB_W+THUMB_GAP;
+      if(items[i].x<minX) items[i].x=minX;
+    }
+    // right→left: pull back inside the right edge if we overflowed
+    const last=items[items.length-1];
+    if(last.x>W-half){
+      last.x=W-half;
+      for(let i=items.length-2;i>=0;i--){
+        const maxX=items[i+1].x-THUMB_W-THUMB_GAP;
+        if(items[i].x>maxX) items[i].x=maxX;
+      }
+    }
+
+    const H=lead.clientHeight||15;
+    lead.setAttribute("viewBox",`0 0 ${W} ${H}`);
+    lead.setAttribute("preserveAspectRatio","none");
+    items.forEach(it=>{
+      const card=c.querySelector(`.shot[data-id="${it.s.id}"]`);
+      if(card) card.style.left=(it.x-half)+"px";
+      const on=it.s.id===sel?" sel":"";
+      lead.insertAdjacentHTML("beforeend",
+        `<line class="${on.trim()}" x1="${it.want}" y1="0" x2="${it.x}" y2="${H}"/>`+
+        `<circle class="${on.trim()}" cx="${it.want}" cy="0" r="1.6"/>`);
+    });
+  }
+  addEventListener("resize",()=>{ if(!el("app").classList.contains("hidden")) layoutContact(); });
+
+  /* drag to re-sequence: live-swaps as the card crosses its neighbours */
+  function wireDrag(card,s){
+    card.addEventListener("pointerdown",e=>{
+      if(e.target.closest(".zoom,[data-mv]")) return;
+      const c=el("contact"), rect=c.getBoundingClientRect();
+      const startLeft=parseFloat(card.style.left)||0, startX=e.clientX;
+      let moved=false;
+      card.setPointerCapture?.(e.pointerId);
+      card.classList.add("dragging");
+      const onMove=ev=>{
+        const dx=ev.clientX-startX;
+        if(Math.abs(dx)>3) moved=true;
+        card.style.left=(startLeft+dx)+"px";
+        // which slot is the card's centre over?
+        const centre=startLeft+dx+THUMB_W/2;
+        const total=segs.length*THUMB_W+(segs.length-1)*THUMB_GAP;
+        const x0=Math.max(0,(rect.width-total)/2);
+        const target=clamp(Math.round((centre-x0-THUMB_W/2)/(THUMB_W+THUMB_GAP)),0,segs.length-1);
+        const cur=segs.indexOf(s);
+        if(target!==cur){
+          segs.splice(cur,1); segs.splice(target,0,s);
+          layoutContact();                       // neighbours slide; dragged card stays under cursor
+        }
+      };
+      const onUp=ev=>{
+        card.releasePointerCapture?.(ev.pointerId);
+        card.classList.remove("dragging");
+        removeEventListener("pointermove",onMove);
+        removeEventListener("pointerup",onUp);
+        if(moved){ setDirty(true); toast(`▸ ${s.id} → position ${segs.indexOf(s)+1}`); refresh(); }
+        else layoutContact();
+      };
+      addEventListener("pointermove",onMove);
+      addEventListener("pointerup",onUp);
+    });
+  }
+
+  function openLightbox(s){
+    el("lbId").textContent=s.id; el("lbLab").textContent=s.label;
+    el("lbBody").innerHTML=frames[s.id];
+    el("lbMeta").innerHTML=`median frame @ <span class="amber">${mmss((s.in+s.out)/2)}</span> · source ${mmss(s.in)}–${mmss(s.out)} · ${segOut(s).toFixed(1)}s on screen`;
+    el("lightbox").classList.add("open");
+  }
+  el("lbClose").addEventListener("click",()=>el("lightbox").classList.remove("open"));
+  el("lightbox").addEventListener("click",e=>{if(e.target===el("lightbox"))el("lightbox").classList.remove("open");});
+
+  /* ---------- 3. INSPECTOR: solo/loop + IN/OUT nudge ---------- */
+  function ramp(sp){let h="";for(let i=0;i<5;i++){const hh=4+(i/4)*10*Math.min(sp/2,1.4);
+    h+=`<i style="height:${hh}px"></i>`;}return h;}
+
+  function renderInspector(){
+    const s=byId(sel), body=el("inspBody");
+    if(!s){ body.innerHTML=`<div class="empty"><span class="big">Nothing selected.</span>
+      Pick a segment below, or drag on the <b class="amber">cuts</b> lane to make one.</div>`; return; }
+    const soloing = soloId===s.id;
+    const play=(s.activeLen*idleScale())/s.speed, hold=s.hold, tot=play+hold;
+    const pPct=tot?(play/tot)*100:100, hPct=tot?(hold/tot)*100:0;
+
+    body.innerHTML=`
+      <div class="seg-title"><span class="id">${s.id}</span><span class="lab">${s.label}</span></div>
+
+      <div class="ratio-seg" data-hint="This segment's ${(s.out-s.in).toFixed(0)}s of source becomes ${segOut(s).toFixed(1)}s on screen.">
+        <span class="win">${(s.out-s.in).toFixed(0)}s</span>
+        <span class="arw">──▶</span>
+        <span class="out">${segOut(s).toFixed(1)}s</span>
+        <span class="on">on screen</span>
+      </div>
+
+      <div class="wbar" data-hint="Amber is playback, hatched is the end hold. Speed shrinks the first, hold grows the second.">
+        <i class="p" style="width:${pPct}%"></i><i class="h" style="width:${hPct}%"></i>
+      </div>
+      <div class="wlegend"><span>${play.toFixed(1)}s play</span><span>${hold?hold.toFixed(1)+"s hold":"no hold"}</span></div>
+
+      <div class="solo-row">
+        <button class="solo ${soloing?"on":""}" data-act="solo"
+          data-hint="Plays only this segment, so you can judge its boundaries in isolation.">${soloing?"❚❚ Stop solo":"▸ Play segment"}</button>
+        <button class="loopb ${looping?"on":""}" data-act="loop" title="Loop"
+          data-hint="Repeat the segment while soloing, so edits show up on the next pass.">↻</button>
+      </div>
+
+      <div class="marks" style="margin-bottom:12px">
+        <div class="mark in" data-hint="In-point. Nudging snaps to the next real event, so it always lands on a frame where something changed.">
+          <div class="ml u">in</div>
+          <div class="row">
+            <button class="nudge" data-act="in-">−</button>
+            <span class="mv">${mmssx(s.in)}</span>
+            <button class="nudge" data-act="in+">+</button>
+          </div>
+        </div>
+        <div class="mark out" data-hint="Out-point. Nudging snaps to the next real event, so it always lands on a frame where something changed.">
+          <div class="ml u">out</div>
+          <div class="row">
+            <button class="nudge" data-act="out-">−</button>
+            <span class="mv">${mmssx(s.out)}</span>
+            <button class="nudge" data-act="out+">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="crow" data-hint="1× stays honest on the payoff · 2×+ compresses drawing and scrolling.">
+        <label>speed</label>
+        <div class="cstep">
+          <button data-act="speed-">−</button><b>${s.speed.toFixed(1)}×</b><button data-act="speed+">+</button>
+        </div>
+        <span class="ramp">${ramp(s.speed)}</span>
+      </div>
+
+      <div class="crow" data-hint="Freezes the last frame, giving the viewer a beat to read the result before the cut.">
+        <label>hold</label>
+        <div class="cstep">
+          <button data-act="hold-">−</button><b>${s.hold.toFixed(1)}s</b><button data-act="hold+">+</button>
+        </div>
+        <button class="btn danger" data-act="drop" style="margin-left:auto"
+          data-hint="Removes this segment from the cut. The source recording is never touched.">✂ drop</button>
+      </div>
+
+      <div class="hintslot ${hintsOn?"":"off"}" id="hintSlot">${DEFAULT_HINT}</div>`;
+
+    body.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>act(b.dataset.act)));
+    // one hint at a time, in a fixed slot — the panel never reflows
+    body.querySelectorAll("[data-hint]").forEach(n=>{
+      const show=()=>setHint(n.dataset.hint);
+      n.addEventListener("mouseenter",show);
+      n.addEventListener("focusin",show);
+      n.addEventListener("mouseleave",()=>setHint(null));
+      n.addEventListener("focusout",()=>setHint(null));
+    });
+  }
+  const DEFAULT_HINT="Hover a control to see what it changes.";
+  function setHint(t){ const h=el("hintSlot"); if(h) h.textContent=t||DEFAULT_HINT; }
+
+  function act(a){
+    const i=idxOf(sel), s=segs[i]; if(!s) return;
+    const NUDGE=0.25;
+    switch(a){
+      case "solo": toggleSolo(s.id); return;
+      case "loop": looping=!looping; toast(`▸ loop ${looping?"on":"off"}`); break;
+      case "in+":  s.in=clamp(snapNext(s.in),0,s.out-0.5); markNudge(s,"in"); break;
+      case "in-":  s.in=clamp(snapPrev(s.in),0,s.out-0.5); markNudge(s,"in"); break;
+      case "out+": s.out=clamp(snapNext(s.out),s.in+0.5,SRC_LEN); markNudge(s,"out"); break;
+      case "out-": s.out=clamp(snapPrev(s.out),s.in+0.5,SRC_LEN); markNudge(s,"out"); break;
+      case "speed+": s.speed=Math.min(4,+(s.speed+0.5).toFixed(1)); used.speed=true; break;
+      case "speed-": s.speed=Math.max(0.5,+(s.speed-0.5).toFixed(1)); used.speed=true; break;
+      case "hold+": s.hold=Math.min(5,+(s.hold+0.5).toFixed(1)); used.hold=true; break;
+      case "hold-": s.hold=Math.max(0,+(s.hold-0.5).toFixed(1)); used.hold=true; break;
+      case "next": selectSeg(segs[Math.min(segs.length-1,i+1)].id); return;
+      case "prev": selectSeg(segs[Math.max(0,i-1)].id); return;
+      case "drop": toast(`✂ ${s.id} dropped — undo with u`,"var(--red)"); break;
+    }
+    setDirty(true); refresh();
+  }
+
+  /* nudging shows the exact boundary frame — the point of "unit level" */
+  function markNudge(s,which){
+    used.nudge=true;
+    el("screen").innerHTML=frames[s.id];
+    el("tbBadge").textContent=`${which} @ ${(which==="in"?s.in:s.out).toFixed(2)}s`;
+    el("tbBadge").classList.add("on");
+    el("ph").style.left=pct(which==="in"?s.in:s.out)+"%";
+    clearTimeout(markNudge._t);
+    markNudge._t=setTimeout(()=>{ if(!soloId) el("tbBadge").classList.remove("on"); },1400);
+  }
+
+  /* ---------- solo playback ---------- */
+  function toggleSolo(id){
+    if(soloId===id){ soloId=null; playing=false; }
+    else { soloId=id; sel=id; phFrac=0; playing=true; last=0;
+           toast(`▸ soloing ${id}${looping?" · looping":""}`);
+           raf=requestAnimationFrame(loop); }
+    updateBadge(); setPlayBtn(); refresh();
+  }
+  function updateBadge(){
+    const b=el("tbBadge");
+    if(soloId){ b.textContent="solo "+soloId; b.classList.add("on"); }
+    else b.classList.remove("on");
+  }
+
+  /* ---------- selection / refresh ---------- */
+  function selectSeg(id){ sel=id; renderInspector(); drawOverlay(); drawContact(); syncPreview(); }
+  function syncPreview(){
+    const s=byId(sel)||segs[0]; if(!s)return;
+    if(srcMode) return;                     // inspecting the source — don't clobber
+    if(!playing) el("screen").innerHTML=frames[s.id];
+    el("segNow").textContent=`▸ ${s.id} · ${s.label}`;
+    el("speedNow").textContent=s.speed.toFixed(1)+"×";
+  }
+  function refresh(){
+    const cut=cutDuration();
+    el("cutTime").textContent=mmss(cut);
+    el("phTotal").textContent=mmss(soloId?segOut(byId(soloId)):cut);
+    el("pctCut").textContent=Math.round((1-cut/SRC_LEN)*100)+"% trimmed";
+    el("inspCount").textContent=segs.length+" kept";
+    el("oDur").textContent=mmss(cut);
+    buildWave(); drawOverlay(); drawContact(); renderInspector(); syncPreview(); updatePlayhead();
+  }
+  function setDirty(v){ dirty=v;
+    el("dirtyDot").style.display=v?"inline":"none";
+    el("saveState").textContent=v?"unsaved":"saved";
+    el("recDot").className="rec"+(v?" unsaved":"");
+  }
+
+  /* ---------- playback ---------- */
+  function updatePlayhead(){
+    if(srcMode && !playing) return;         // parked on a scrubbed source moment
+    if(soloId){
+      const s=byId(soloId), dur=segOut(s);
+      const srcT=s.in+phFrac*(s.out-s.in);
+      el("ph").style.left=pct(srcT)+"%";
+      el("phTime").textContent=mmss(phFrac*dur);
+      el("segNow").textContent=`▸ ${s.id} · ${s.label}`;
+      el("speedNow").textContent=s.speed.toFixed(1)+"×";
+      if(playing) el("screen").innerHTML=frames[s.id];
+      return;
+    }
+    const cut=cutDuration(), tCut=phFrac*cut;
+    let acc=0, srcT=segs.length?segs[0].in:0;
+    for(let i=0;i<segs.length;i++){
+      if(i>0)acc+=BEAT; const dur=segOut(segs[i]);
+      if(tCut<=acc+dur||i===segs.length-1){
+        const f=clamp((tCut-acc)/dur,0,1), s=segs[i];
+        srcT=s.in+f*(s.out-s.in);
+        el("segNow").textContent=`▸ ${s.id} · ${s.label}`;
+        el("speedNow").textContent=s.speed.toFixed(1)+"×";
+        if(playing){
+          el("screen").innerHTML=frames[s.id];
+          // the strip doubles as a progress indicator while playing
+          el("contact").querySelectorAll(".shot").forEach(n=>
+            n.classList.toggle("playing", n.dataset.id===s.id));
+        }
+        break;
+      } acc+=dur;
+    }
+    el("ph").style.left=pct(srcT)+"%";
+    el("phTime").textContent=mmss(tCut);
+  }
+  let raf=null,last=0;
+  function loop(ts){
+    if(!playing)return;
+    if(!last)last=ts; const dt=(ts-last)/1000; last=ts;
+    const dur = soloId?segOut(byId(soloId)):cutDuration();
+    phFrac += dt/dur;
+    if(phFrac>=1){
+      if(soloId&&looping){ phFrac=0; }
+      else { phFrac=0; playing=false; if(soloId){soloId=null;updateBadge();}
+             setPlayBtn(); refresh(); return; }
+    }
+    updatePlayhead(); raf=requestAnimationFrame(loop);
+  }
+  function setPlayBtn(){ el("playBtn").innerHTML=playing?"❚❚&nbsp;&nbsp;Pause":"▶&nbsp;&nbsp;Play cut"; }
+  function togglePlay(){
+    playing=!playing; setPlayBtn();
+    if(playing){                            // leaving source-inspection
+      srcMode=false; el("cutHere").classList.remove("on");
+      if(!soloId) el("tbBadge").classList.remove("on");
+      autoStripForPlayback(true);           // strip follows playback order
+      last=0; raf=requestAnimationFrame(loop);
+    } else { cancelAnimationFrame(raf); autoStripForPlayback(false); }
+  }
+
+  /* ---------- scrub the activity lane (retained from shipped, made obvious) ----------
+     Shipped castcut seeks on a sub-threshold click with no affordance. Here the
+     lane gets a crosshair, a hover guide with a time + kept/dead readout, and
+     the preview shows the SOURCE frame at that moment — so unsegmented stretches
+     are genuinely inspectable, not just pointable-at. */
+  let srcMode=false, srcT=0;
+
+  function timeAtX(clientX){
+    const r=el("wave").getBoundingClientRect();
+    return clamp((clientX-r.left)/r.width,0,1)*SRC_LEN;
+  }
+  function showGuide(t){
+    const g=el("scrub"), chip=el("scrubchip"), st=statusAt(t);
+    g.classList.add("on"); chip.classList.add("on");
+    g.style.left=pct(t)+"%"; chip.style.left=pct(t)+"%";
+    const cls=st.kind==="kept"?"kept":st.kind==="miss"?"miss":"dead";
+    const tag=st.kind==="kept"?st.seg.id:st.kind==="miss"?"unkept activity":"dead air";
+    chip.innerHTML=`${mmss(t)} <span class="${cls}">· ${tag}</span>`;
+  }
+  function hideGuide(){ el("scrub").classList.remove("on"); el("scrubchip").classList.remove("on"); }
+
+  function scrubTo(t){
+    srcMode=true; srcT=t; playing=false; soloId=null; setPlayBtn();
+    const st=statusAt(t);
+    el("screen").innerHTML=st.frame;
+    el("tbBadge").textContent="source "+mmss(t);
+    el("tbBadge").classList.add("on");
+    el("ph").style.left=pct(t)+"%";
+    el("phTime").textContent=mmss(t);
+    el("segNow").textContent=st.kind==="kept"?`▸ ${st.label}`
+      : st.kind==="miss"?`▸ unkept activity — not in any cut`
+      : `▸ dead air — not in any cut`;
+    el("cutHere").classList.toggle("on", st.kind!=="kept");
+    drawOverlay();
+  }
+
+  (function wireScrub(){
+    const w=el("wave"); let down=false;
+    w.addEventListener("pointermove",e=>{ showGuide(timeAtX(e.clientX));
+      if(down) scrubTo(timeAtX(e.clientX)); });
+    w.addEventListener("pointerleave",()=>{ if(!down) hideGuide(); });
+    w.addEventListener("pointerdown",e=>{ down=true; w.setPointerCapture?.(e.pointerId);
+      scrubTo(timeAtX(e.clientX)); });
+    w.addEventListener("pointerup",e=>{ down=false; try{w.releasePointerCapture(e.pointerId);}catch{} });
+  })();
+
+  /* scrubbing found something worth keeping → make it a segment right there */
+  el("cutHere").addEventListener("click",()=>{
+    const a=clamp(srcT-6,0,SRC_LEN), b=clamp(srcT+6,0,SRC_LEN);
+    const st=statusAt(srcT);
+    const id="S"+(segs.length+1);
+    // Insert at the SOURCE-adjacent position without disturbing any deliberate
+    // re-sequencing elsewhere: find the first segment that starts later.
+    const at=segs.findIndex(s=>s.in>a);
+    const seg={id, label:st.kind==="miss"?"unkept activity":"new window",
+      in:a, out:b, activeLen:Math.min(8,b-a), speed:1.0, hold:0.0};
+    if(at<0) segs.push(seg); else segs.splice(at,0,seg);
+    srcMode=false; el("cutHere").classList.remove("on"); el("tbBadge").classList.remove("on");
+    const made=segs.find(s=>s.in===a);
+    sel=made?made.id:sel;
+    setDirty(true); refresh(); toast(`✂ cut added at ${mmss(srcT)}`);
+  });
+
+  /* ---------- 4. hints + keys chips ---------- */
+  el("hintsToggle").addEventListener("click",()=>{
+    hintsOn=!hintsOn;
+    el("hintsToggle").textContent="hints "+(hintsOn?"on":"off");
+    el("hintsToggle").classList.toggle("on",false);
+    document.querySelectorAll(".hint-copy").forEach(n=>n.style.display=hintsOn?"":"none");
+    if(!hintsOn){ used.speed=used.hold=used.nudge=true; }
+    else { used.speed=used.hold=used.nudge=false; }
+    renderInspector();
+  });
+  el("keysToggle").addEventListener("click",()=>{
+    const on=el("keys").classList.toggle("on");
+    el("keysToggle").classList.toggle("on",on);
+  });
+
+  /* ---------- export ---------- */
+  let fmt="mp4";
+  document.querySelectorAll(".fmt").forEach(b=>b.addEventListener("click",()=>{
+    document.querySelectorAll(".fmt").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); fmt=b.dataset.fmt;
+    el("doExport").textContent="▸ Render "+fmt;
+    el("outline").innerHTML=`forge_sprint.${fmt} &nbsp;<span class="mut">·</span>&nbsp; <span class="amber">${mmss(cutDuration())}</span> <span class="mut">· ${segs.length} segments · also writes .cast + .castcut.json</span>`;
+  }));
+  el("openExport").addEventListener("click",()=>el("drawer").classList.add("open"));
+  el("closeExport").addEventListener("click",()=>el("drawer").classList.remove("open"));
+  el("drawer").addEventListener("click",e=>{if(e.target===el("drawer"))el("drawer").classList.remove("open");});
+  el("saveProj").addEventListener("click",()=>{setDirty(false);toast("▸ project saved");});
+  el("doExport").addEventListener("click",()=>{
+    const p=el("prog"), bar=p.querySelector("i"); p.classList.remove("done");
+    let v=0; el("plabel").textContent="Rendering frames (agg)…";
+    const t=setInterval(()=>{
+      v+=8; bar.style.width=Math.min(100,v)+"%";
+      if(v>55) el("plabel").textContent="Encoding ("+fmt+" · ffmpeg)…";
+      if(v>=100){ clearInterval(t); p.classList.add("done");
+        el("plabel").innerHTML=`▸ wrote <span class="amber">forge_sprint.${fmt}</span>`;
+        toast(`▸ wrote forge_sprint.${fmt}`); setDirty(false); }
+    },140);
+  });
+
+  /* ---------- idle cap ---------- */
+  el("idle").addEventListener("input",e=>{
+    idleCap=+e.target.value; el("idleVal").textContent=idleCap.toFixed(1)+"s";
+    setDirty(true); refresh();
+  });
+
+  /* ---------- keys ---------- */
+  el("playBtn").addEventListener("click",togglePlay);
+  addEventListener("keydown",e=>{
+    if(el("welcome").classList.contains("gone")===false) return;
+    if(e.target.tagName==="INPUT")return;
+    const i=idxOf(sel);
+    switch(e.key){
+      case " ": e.preventDefault(); togglePlay(); break;
+      case "Enter": toggleSolo(sel); break;
+      // Shift+[ / Shift+] re-sequence; bare [ / ] select (mirrors shipped ↑↓)
+      case "}": case "]": e.shiftKey?moveByStep(sel,1):selectSeg(segs[Math.min(segs.length-1,i+1)].id); break;
+      case "{": case "[": e.shiftKey?moveByStep(sel,-1):selectSeg(segs[Math.max(0,i-1)].id); break;
+      case ",": act("in-"); break;
+      case ".": act("in+"); break;
+      case "s": act("speed+"); break;
+      case "h": act("hold+"); break;
+      case "x": act("drop"); break;
+      case "e": el("drawer").classList.add("open"); break;
+      case "Escape": el("lightbox").classList.remove("open");
+                     el("drawer").classList.remove("open"); break;
+    }
+  });
+
+  /* ---------- toasts ---------- */
+  function toast(msg,color){
+    const t=document.createElement("div"); t.className="toast";
+    t.innerHTML=`<span class="g" style="${color?`color:${color}`:""}">${msg[0]}</span>${msg.slice(1)}`;
+    el("toasts").appendChild(t);
+    setTimeout(()=>{t.style.transition="opacity .3s";t.style.opacity="0";
+      setTimeout(()=>t.remove(),300);},2000);
+  }
+
+  /* ---------- boot / welcome ---------- */
+  function boot(name){
+    el("fileName").textContent=name;
+    el("tbTitle").textContent=name+" — composed";
+    el("welcome").classList.add("gone");
+    el("app").classList.remove("hidden");
+    setDirty(false); refresh(); setPlayBtn();
+    el("coach").classList.remove("gone");           // first-run coach mark, once
+  }
+  el("welSample").addEventListener("click",()=>boot("forge_sprint.cast"));
+  el("welOpen").addEventListener("click",()=>{toast("▸ native file picker (⌘O)");
+    setTimeout(()=>boot("forge_sprint.cast"),450);});
+  document.querySelectorAll("[data-recent]").forEach(r=>
+    r.addEventListener("click",()=>boot(r.dataset.recent)));
+  el("coachX").addEventListener("click",()=>el("coach").classList.add("gone"));
+  el("cutlane").addEventListener("click",()=>el("coach").classList.add("gone"));
+})();
+</script>
+</body>
+</html>

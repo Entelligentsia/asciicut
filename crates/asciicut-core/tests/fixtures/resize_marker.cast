@@ -1,0 +1,6 @@
+{"version": 2, "width": 8, "height": 3}
+[0.10, "o", "hello"]
+[0.20, "m", "intro"]
+[0.30, "r", "12x4"]
+[0.40, "o", "\r\nworld"]
+[0.50, "m", "outro"]

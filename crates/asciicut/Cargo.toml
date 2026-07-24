@@ -1,0 +1,26 @@
+[package]
+name = "asciicut"
+description = "The native asciicut CLI — a thin shell over the asciicut-core compose engine (SPEC §8.1)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+# lib + thin bin split: the pure `compose_project` orchestration lives in the
+# library so it is integration-testable without spawning a subprocess, while
+# `src/main.rs` is the minimal arg dispatcher / exit-code shell. The bin name
+# defaults to the package name (`asciicut`).
+
+[dependencies]
+# The single shared engine crate — parse/compose/serialize all live here, so the
+# CLI stays a thin native-only shell and the compose contract can't drift from
+# the in-browser preview (SPEC §7.4). Native-only consumer: this crate is never
+# built for wasm32-unknown-unknown, so it never touches the parity boundary.
+asciicut-core = { path = "../asciicut-core" }
+
+# The local HTTP server (library crate). A bare `<file.cast>` argument launches
+# it; `tokio` provides the runtime the async `serve` entry needs. Both are
+# native-only — this binary is never built for wasm32, so parity is untouched.
+asciicut-server = { path = "../asciicut-server" }
+tokio = { workspace = true }

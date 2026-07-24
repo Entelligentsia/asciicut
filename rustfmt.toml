@@ -1,0 +1,5 @@
+# Formatting config so `cargo fmt --check` (stack-checklist gate 1) is a
+# meaningful, stable gate across contributors. Defaults on the stable channel,
+# stated explicitly for clarity.
+edition = "2021"
+max_width = 100

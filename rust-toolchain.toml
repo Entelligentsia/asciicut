@@ -1,0 +1,7 @@
+# Reproducible toolchain: `rustup` reads this so CI and developers get the same
+# stable channel, and the `wasm32-unknown-unknown` target is auto-provisioned
+# (the second compile target of the one engine — SPEC §7.4).
+[toolchain]
+channel = "stable"
+targets = ["wasm32-unknown-unknown"]
+components = ["rustfmt", "clippy"]

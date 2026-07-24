@@ -1,0 +1,31 @@
+{
+  "name": "asciicut-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "asciicut SolidJS SPA — the browser presentation layer over the asciicut-server /api surface and the asciicut_core.wasm plumbing proof (CASTCU-S1-T08).",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "wasm": "cargo build --target wasm32-unknown-unknown --release -p asciicut-core --manifest-path ../Cargo.toml",
+    "build:wasm": "npm run wasm && node scripts/copy-wasm.mjs",
+    "build": "npm run build:wasm && vite build",
+    "build:desktop": "npm run build:wasm && vite build --mode desktop",
+    "tauri": "cd ../crates/asciicut-desktop && tauri",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@solidjs/router": "^0.14.10",
+    "@tauri-apps/api": "^2.11.1",
+    "asciinema-player": "3.17.0",
+    "solid-js": "^1.9.3"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vite-plugin-solid": "^2.10.2",
+    "vite-plugin-top-level-await": "^1.4.4",
+    "vite-plugin-wasm": "^3.3.0"
+  }
+}

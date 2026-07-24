@@ -1,0 +1,43 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Minimal shell capability set — Tauri core + sidecar process spawning (agg/ffmpeg) only. No general fs/dialog/shell permissions beyond what the sidecar plugin needs.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "sidecars/agg",
+          "cmd": "sidecars/agg",
+          "args": true,
+          "sidecar": true
+        },
+        {
+          "name": "sidecars/ffmpeg",
+          "cmd": "sidecars/ffmpeg",
+          "args": true,
+          "sidecar": true
+        }
+      ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "sidecars/agg",
+          "cmd": "sidecars/agg",
+          "args": true,
+          "sidecar": true
+        },
+        {
+          "name": "sidecars/ffmpeg",
+          "cmd": "sidecars/ffmpeg",
+          "args": true,
+          "sidecar": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+# Virtual workspace root (no root package). Later crates — the `asciicut` CLI,
+# `asciicut-mcp`, `asciicut-server` (SPEC §7.2) — slot into `crates/*` without any
+# restructuring. `asciicut-core` is the single shared engine crate all surfaces
+# build on (SPEC §7.4).
+[workspace]
+members = ["crates/*"]
+# The Tauri v2 desktop shell (CASTCU-S2-T01) lives at `crates/asciicut-desktop`
+# for naming consistency but is DETACHED from this virtual workspace: excluding
+# it keeps Tauri's native dep tree (wry/tao/webkit2gtk) out of this Cargo.lock
+# and `[workspace.dependencies]`, and keeps `asciicut` the SOLE workspace binary
+# so bare `cargo run -- <file.cast>` stays unambiguous (PLAN D1). The crate
+# carries its own `[workspace]` table + Cargo.lock.
+exclude = ["crates/asciicut-desktop"]
+# Explicit resolver: silences the virtual-workspace default-resolver cargo
+# warning (which `clippy -D warnings` would not otherwise catch).
+resolver = "2"
+
+# Shared package metadata inherited by every workspace crate via
+# `field.workspace = true`, so version/edition/license stay in one place.
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Entelligentsia"]
+repository = "https://github.com/Entelligentsia/asciicut"
+
+# One shared version pin for the JSON stack, inherited by every workspace crate
+# via `field.workspace = true`. `asciicut-core` uses these to decode the asciinema
+# `.cast` header + event lines; both are wasm-compatible with the default `std`
+# feature, preserving the byte-identical native ↔ wasm parity contract (SPEC §7.1).
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Native-only local-server stack (SPEC §7.2). Pinned once here because both the
+# `asciicut` binary (launcher) and `asciicut-server` (the HTTP surface) link them,
+# matching the existing one-pin convention. NEVER added to `asciicut-core`: these
+# are native-only and must not cross the wasm32-unknown-unknown parity boundary.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+axum = "0.7"
+rust-embed = { version = "8", features = ["debug-embed"] }
+mime_guess = "2"
+# asciinema's virtual-terminal emulator — the single VT that powers frame-at-T
+# (CASTCU-S1-T03). Pinned once here because it crosses the native ↔ wasm parity
+# boundary (SPEC §7.1): every surface must link the *same* VT version so the
+# byte-identical grid contract holds. avt 0.18.0 builds clean on both the native
+# host and `wasm32-unknown-unknown`; its dep tree (`unicode-width`, `rgb`, and
+# `bytemuck` transitively via `rgb`) is wasm-safe (its only `std::fs` use is
+# `#[cfg(test)]`).
+avt = "0.18.0"

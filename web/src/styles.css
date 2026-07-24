@@ -1,0 +1,2219 @@
+/* asciicut — the cutting room. Ported from prototype/ux/index.html to the SPA's
+   real DOM (canvas waveform + overlaid segment canvas + asciinema-player mount
+   + filmstrip figures), preserving the prototype's design tokens, chrome, and
+   layout. */
+
+:root {
+  --ink: #0a0d0f;
+  --panel: #111619;
+  --panel-2: #0c1113;
+  --inset: #080b0d;
+  --line: #20282c;
+  --line-bright: #33424a;
+  --paper: #e9e6dd;
+  --dim: #63727a;
+  --faint: #3a464c;
+  --amber: #ffb454;
+  --amber-deep: #c8791f;
+  --amber-glow: rgba(255, 180, 84, 0.28);
+  --cyan: #5ad1e6;
+  --cyan-glow: rgba(90, 209, 230, 0.3);
+  --red: #ff6b6b;
+  --green: #7fd97f;
+  --mono: "JetBrains Mono", "Berkeley Mono", ui-monospace, "SF Mono", Menlo,
+    Consolas, monospace;
+  --r: 3px;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  background-image: radial-gradient(
+      1200px 600px at 78% -10%,
+      rgba(255, 180, 84, 0.05),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at 0% 110%,
+      rgba(90, 209, 230, 0.045),
+      transparent 55%
+    );
+}
+::selection {
+  background: var(--amber);
+  color: #1a1206;
+}
+button {
+  font-family: inherit;
+  color: inherit;
+}
+.u {
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.mut {
+  color: var(--dim);
+}
+.amber {
+  color: var(--amber);
+}
+.cyan {
+  color: var(--cyan);
+}
+code {
+  font-family: var(--mono);
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 0 4px;
+}
+
+/* ── app shell ─────────────────────────────────────────────────────────── */
+.app {
+  max-width: 1220px;
+  margin: 0 auto;
+  /* One-screen cutting room: the shell owns the viewport height and never
+     page-scrolls. The clapper and footer are fixed-height rails; `main` flexes
+     to fill the gap, and any overflow lives inside its panes, not the page. */
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px 0;
+  overflow: hidden;
+}
+
+/* ── header / clapper ───────────────────────────────────────────────────── */
+.clapper {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-bright);
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  padding: 10px 14px;
+  border-radius: var(--r) var(--r) 0 0;
+}
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  white-space: nowrap;
+}
+.brand .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 10px var(--amber-glow);
+  align-self: center;
+}
+/* Nibbles logomark — the beaver's amber goggles carry the app accent. A soft
+   amber halo seats him against the dark clapper without a hard frame. */
+.brand-logo {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  align-self: center;
+  filter: drop-shadow(0 0 6px var(--amber-glow));
+}
+.brand b {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+}
+.brand .tag {
+  color: var(--dim);
+  font-size: 11px;
+}
+.file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dim);
+  font-size: 12px;
+  padding-left: 18px;
+  border-left: 1px solid var(--line);
+}
+.file .name {
+  color: var(--paper);
+}
+.file .badge {
+  color: var(--amber);
+  border: 1px solid var(--amber-deep);
+  border-radius: 2px;
+  padding: 0 5px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.ratio {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ratio .raw {
+  color: var(--dim);
+  text-decoration: line-through;
+  text-decoration-color: var(--faint);
+}
+.ratio .arrow {
+  color: var(--amber);
+  letter-spacing: -0.05em;
+}
+.ratio .cut {
+  color: var(--amber);
+  font-weight: 700;
+  font-size: 16px;
+  text-shadow: 0 0 14px var(--amber-glow);
+}
+.ratio .pct {
+  color: var(--dim);
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 1px 6px;
+}
+
+/* ── body grid ──────────────────────────────────────────────────────────── */
+main {
+  display: grid;
+  grid-template-columns: 1.62fr 0.95fr;
+  /* Row 1 (preview | inspector) flexes to fill; row 2 (timeline) is natural.
+     Row 1 carries a floor so the natural-height timeline can't starve the
+     preview terminal — otherwise `fit: "both"` letterboxes the 120×40 cast to
+     a sliver of height and it renders tiny (see PlayerPreview). */
+  grid-template-rows: minmax(300px, 1fr) auto;
+  gap: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+}
+.pane {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 14px;
+  min-width: 0;
+  min-height: 0;
+}
+.pane + .pane,
+.insp-pane {
+  border-left: 1px solid var(--line);
+}
+.pane-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pane-h .k {
+  font-size: 10px;
+  color: var(--dim);
+}
+.pane-h .rule {
+  flex: 1;
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--line),
+    var(--line) 4px,
+    transparent 4px,
+    transparent 7px
+  );
+}
+
+/* ── preview terminal ───────────────────────────────────────────────────── */
+/* The preview pane is a vertical stack: header · terminal frame · transport.
+   The frame flexes to claim the leftover height so the terminal is always
+   fully visible without scrolling the page. */
+.preview.pane {
+  display: flex;
+  flex-direction: column;
+}
+.preview .frame {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #282a36;
+  border: 1px solid #000;
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--line) inset;
+  overflow: hidden;
+}
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  background: #20222c;
+  border-bottom: 1px solid #15161d;
+}
+.tl-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.tl-dot.r {
+  background: #ff5f57;
+}
+.tl-dot.y {
+  background: #febc2e;
+}
+.tl-dot.g {
+  background: #28c840;
+}
+.titlebar .t {
+  margin-left: 6px;
+  color: #8b90a8;
+  font-size: 11px;
+}
+.screen {
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  background: #282a36;
+  overflow: hidden;
+}
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--amber);
+  color: #1a1206;
+  border: none;
+  border-radius: 3px;
+  padding: 6px 14px;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--amber-deep), 0 6px 18px rgba(255, 180, 84, 0.16);
+}
+.play:hover {
+  filter: brightness(1.06);
+}
+.play:active {
+  transform: translateY(1px);
+}
+.tcode {
+  color: var(--paper);
+}
+.tcode .sep {
+  color: var(--faint);
+}
+.seg-now {
+  color: var(--cyan);
+  font-size: 11px;
+}
+.speed-now {
+  margin-left: auto;
+  color: var(--amber);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+/* ── inspector (SegmentControls) ─────────────────────────────────────────── */
+.insp-pane {
+  display: flex;
+  flex-direction: column;
+  /* A long inspector (marks · speed · hold · reorder list) scrolls inside its
+     column rather than growing the page. */
+  overflow-y: auto;
+}
+.segment-controls.insp {
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+.insp__empty {
+  color: var(--dim);
+  font-size: 12px;
+  padding: 20px 4px;
+  line-height: 1.7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+/* Nibbles tangled in tape — fills the otherwise-barren inspector when no
+   segment is selected. Kept muted so it reads as a friendly empty state,
+   not a competing focal point. */
+.insp__mascot {
+  width: min(58%, 170px);
+  height: auto;
+  margin-bottom: 12px;
+  opacity: 0.9;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45));
+}
+.seg-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.seg-title .id {
+  color: var(--amber);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.seg-title .lab {
+  color: var(--paper);
+  font-size: 12.5px;
+}
+.seg-sub {
+  color: var(--dim);
+  font-size: 11px;
+  margin-bottom: 14px;
+}
+.field {
+  margin: 0 0 13px;
+}
+.field > label {
+  display: block;
+  font-size: 10px;
+  color: var(--dim);
+  margin-bottom: 6px;
+}
+.marks {
+  display: flex;
+  gap: 8px;
+}
+.mark {
+  flex: 1;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 7px 9px;
+}
+.mark .ml {
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 0.16em;
+}
+.mark .mv {
+  font-size: 14px;
+  color: var(--paper);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.mark.in {
+  border-left: 2px solid var(--green);
+}
+.mark.out {
+  border-left: 2px solid var(--red);
+}
+.stepper {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--inset);
+  width: 100%;
+}
+.stepper button {
+  background: var(--panel);
+  border: none;
+  color: var(--paper);
+  width: 34px;
+  font-size: 16px;
+  cursor: pointer;
+  border-right: 1px solid var(--line);
+}
+.stepper button:last-child {
+  border-right: none;
+  border-left: 1px solid var(--line);
+}
+.stepper button:hover {
+  background: #182025;
+  color: var(--amber);
+}
+.stepper .val {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.stepper .val b {
+  font-size: 16px;
+  color: var(--amber);
+  font-weight: 700;
+}
+.stepper .val .un {
+  font-size: 10px;
+  color: var(--dim);
+}
+.ramp {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+.ramp i {
+  width: 3px;
+  background: var(--amber-deep);
+  border-radius: 1px;
+}
+.hint {
+  font-size: 10.5px;
+  color: var(--dim);
+  margin-top: 5px;
+  line-height: 1.5;
+}
+.seg-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line);
+}
+.btn {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--paper);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+.btn:hover {
+  border-color: var(--line-bright);
+  background: #161d21;
+}
+.btn.danger:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+.btn:disabled,
+.exp-btn:disabled,
+.go:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* compact reorder list (kept for the T11 reorder feature) */
+.segment-controls__list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.segment-controls__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: 11px;
+}
+.segment-controls__row--selected {
+  border-color: var(--amber);
+  background: rgba(255, 180, 84, 0.06);
+}
+.segment-controls__pick {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--paper);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.segment-controls__actions {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+.segment-controls__actions button {
+  min-width: 1.6rem;
+  padding: 0.15rem 0.4rem;
+  background: var(--panel);
+  color: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.segment-controls__actions button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── timeline hero ───────────────────────────────────────────────────────── */
+.timeline-hero {
+  grid-column: 1 / -1;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--panel-2), var(--inset));
+  padding: 12px 14px 14px;
+}
+.tl-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.tl-head .k {
+  font-size: 10px;
+  color: var(--dim);
+}
+.idle {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 10px;
+  color: var(--dim);
+}
+.idle-val {
+  color: var(--amber);
+  width: 34px;
+  font-variant-numeric: tabular-nums;
+}
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  width: 120px;
+  background: var(--line-bright);
+  border-radius: 3px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--amber);
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--amber-glow);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: var(--amber);
+  cursor: pointer;
+}
+.ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: var(--faint);
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+/* Non-clipping anchor around .wave-wrap so the first-run coach mark (whose
+   "Got it" button extends below the lane) isn't clipped by wave-wrap's
+   overflow:hidden. Shares wave-wrap's top edge so top:88px anchoring holds. */
+.wave-anchor {
+  position: relative;
+}
+.wave-wrap {
+  position: relative;
+  padding: 0;
+  user-select: none;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--inset);
+  overflow: hidden;
+}
+/* scanline veil — CRT phosphor, hero only */
+.wave-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.16),
+    rgba(0, 0, 0, 0.16) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+.timeline__canvas {
+  display: block;
+  width: 100%;
+  /* Kept in sync with HEIGHT in Timeline.tsx. */
+  height: 84px;
+  cursor: crosshair;
+  touch-action: none;
+}
+/* The waveform lane (Timeline component renders .timeline). */
+.timeline {
+  width: 100%;
+  background: var(--inset);
+}
+/* The segment lane (SegmentTrack renders .segment-track), stacked directly
+   under the waveform, time-aligned via the shared viewport. */
+.segment-track {
+  width: 100%;
+  background: transparent;
+  border-top: 1px solid var(--line);
+}
+.segment-track__canvas {
+  display: block;
+  width: 100%;
+  /* Kept in sync with HEIGHT in SegmentTrack.tsx. */
+  height: 58px;
+  cursor: ew-resize;
+  touch-action: none;
+  outline: none;
+}
+.segment-track__canvas:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--cyan);
+}
+
+/* ── filmstrip ───────────────────────────────────────────────────────────── */
+.filmstrip {
+  /* The cells are absolutely placed by time (left: N%); this establishes their
+     containing block so `overflow: hidden` actually clips edge thumbnails
+     instead of letting them spill past the viewport into a page scrollbar. */
+  position: relative;
+  display: flex;
+  gap: 0;
+  margin-top: 9px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--inset);
+  overflow: hidden;
+  height: 48px;
+}
+.filmstrip__cell {
+  position: absolute;
+  top: 0;
+  margin: 0;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}
+.filmstrip__thumb {
+  margin: 0;
+  padding: 2px 3px;
+  font-family: var(--mono);
+  font-size: 4px;
+  line-height: 1.15;
+  background: #282a36;
+  color: var(--paper);
+  white-space: pre;
+  overflow: hidden;
+  height: 40px;
+  border-top: 2px solid var(--amber);
+}
+.filmstrip__time {
+  margin-top: 1px;
+  color: var(--faint);
+  font-size: 7px;
+  font-variant-numeric: tabular-nums;
+}
+.film-labels {
+  display: flex;
+  font-size: 9px;
+  color: var(--faint);
+  margin-top: 3px;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+/* ── player preview mount ────────────────────────────────────────────────── */
+.player-preview {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.player-preview__mount {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: #282a36;
+}
+.player-preview__mount--hidden {
+  display: none;
+}
+
+/* ── status / keybinds ───────────────────────────────────────────────────── */
+footer.status {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  border-top: 1px solid var(--line-bright);
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border-radius: 0 0 var(--r) var(--r);
+  padding: 8px 12px;
+  /* The shell owns the viewport height, so the footer is the natural bottom
+     rail — no sticky, no page-tail margin. */
+  flex: 0 0 auto;
+  font-size: 11px;
+}
+.kb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  color: var(--dim);
+  border-right: 1px solid var(--line);
+}
+.kb:last-of-type {
+  border-right: none;
+}
+.kb b {
+  color: var(--amber);
+  font-weight: 600;
+}
+kb,
+.kb kbd {
+  display: inline-block;
+  min-width: 16px;
+  text-align: center;
+  border: 1px solid var(--line-bright);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 0 4px;
+  color: var(--paper);
+  font-size: 10px;
+  background: var(--inset);
+  font-family: var(--mono);
+}
+.status .live {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--dim);
+}
+.status .live .rec {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 8px rgba(255, 107, 107, 0.6);
+  animation: blink 1.6s steps(2) infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+.exp-btn {
+  background: var(--amber);
+  color: #1a1206;
+  border: none;
+  border-radius: 3px;
+  padding: 5px 13px;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--amber-deep);
+}
+.exp-btn:hover {
+  filter: brightness(1.06);
+}
+
+/* ── export drawer ───────────────────────────────────────────────────────── */
+.drawer {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 7, 8, 0.72);
+  backdrop-filter: blur(3px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 20px;
+}
+.drawer.open {
+  display: flex;
+}
+.sheet {
+  width: min(720px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  border-radius: 6px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+.sheet-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.sheet-h b {
+  letter-spacing: 0.05em;
+}
+.sheet-h .x {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  width: 26px;
+  height: 26px;
+  color: var(--dim);
+  cursor: pointer;
+  font-size: 14px;
+}
+.sheet-h .x:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+.sheet-b {
+  padding: 16px;
+}
+.out-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.out {
+  flex: 1;
+  min-width: 120px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 9px 11px;
+  background: var(--inset);
+}
+.out .ol {
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 0.14em;
+}
+.out .ov {
+  color: var(--paper);
+  font-size: 12px;
+  margin-top: 3px;
+  word-break: break-all;
+}
+.out .os {
+  color: var(--amber);
+  font-size: 10px;
+}
+.cmd {
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--amber);
+  border-radius: 3px;
+  padding: 11px 12px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--paper);
+  white-space: pre-wrap;
+  word-break: break-word;
+  position: relative;
+}
+.cmd .c {
+  color: var(--dim);
+}
+.cmd .f {
+  color: var(--cyan);
+}
+.cmd .a {
+  color: var(--amber);
+}
+.copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--dim);
+  font-size: 10px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.copy:hover {
+  color: var(--amber);
+  border-color: var(--amber-deep);
+}
+.sheet-f {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 13px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.sheet-f .go,
+.quit-f .go {
+  background: var(--amber);
+  color: #1a1206;
+  border: none;
+  border-radius: 3px;
+  padding: 8px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+}
+.sheet-f .go:hover,
+.quit-f .go:hover {
+  filter: brightness(1.06);
+}
+.sheet-f .note {
+  color: var(--dim);
+  font-size: 10.5px;
+}
+
+/* ── export drawer: desktop video pipeline (CASTCU-S2-T05) ─────────────── */
+.fmt-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.fmt-btn {
+  flex: 1;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 8px 10px;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+.fmt-btn:hover {
+  color: var(--paper);
+  border-color: var(--line-bright);
+}
+.fmt-btn.active {
+  color: #1a1206;
+  background: var(--amber);
+  border-color: var(--amber-deep);
+}
+.fmt-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.progress-bar {
+  flex: 1;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--amber);
+  transition: width 0.15s linear;
+}
+.progress-fill.done {
+  background: var(--green, #6ee7a0);
+}
+.progress-fill.error {
+  background: var(--red);
+}
+.progress-label {
+  color: var(--dim);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+/* ── quit guard modal ────────────────────────────────────────────────────── */
+.quit-guard {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 7, 8, 0.72);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 55;
+  padding: 20px;
+}
+.quit-box {
+  width: min(420px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  border-radius: 6px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+.quit-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.quit-h b {
+  letter-spacing: 0.05em;
+}
+.quit-b {
+  padding: 18px 16px;
+  font-size: 12px;
+  color: var(--paper);
+}
+.quit-f {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 13px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+/* ── toasts ──────────────────────────────────────────────────────────────── */
+#toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 70px;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  pointer-events: none;
+}
+.toast {
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  border-left: 2px solid var(--amber);
+  border-radius: 3px;
+  padding: 7px 13px;
+  font-size: 11.5px;
+  color: var(--paper);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  animation: rise 0.25s ease both;
+}
+.toast .g {
+  color: var(--amber);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ── notices / errors / load view ────────────────────────────────────────── */
+.notice {
+  margin: 0.75rem 0;
+  padding: 0.6rem 0.9rem;
+  background: var(--panel);
+  border-left: 3px solid var(--amber-deep);
+  border-radius: 3px;
+  color: var(--dim);
+  font-size: 12px;
+}
+.error {
+  margin: 0.75rem 0;
+  padding: 0.6rem 0.9rem;
+  color: var(--red);
+  background: rgba(255, 107, 107, 0.06);
+  border-left: 3px solid var(--red);
+  border-radius: 3px;
+  font-size: 12px;
+}
+.persist-line {
+  margin: 0 0 8px;
+  max-width: 1220px;
+}
+
+/* Load-cast view (themed shell). */
+.view {
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+.view h2 {
+  color: var(--amber);
+  letter-spacing: 0.04em;
+  font-size: 16px;
+  margin: 0 0 14px;
+}
+.dropzone {
+  border: 2px dashed var(--line-bright);
+  border-radius: 6px;
+  padding: 2rem;
+  text-align: center;
+  color: var(--dim);
+  background: var(--panel-2);
+  transition: border-color 0.15s ease;
+}
+.dropzone--active {
+  border-color: var(--amber);
+  background: rgba(255, 180, 84, 0.05);
+}
+.dropzone__pick {
+  display: inline-block;
+  margin-top: 0.75rem;
+  cursor: pointer;
+  color: var(--amber);
+}
+.dropzone__pick input {
+  display: block;
+  margin-top: 0.5rem;
+}
+.load-launch {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--amber);
+  color: #1a1206;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.load-launch:hover {
+  filter: brightness(1.06);
+}
+.load-preview {
+  margin-top: 1.5rem;
+}
+.load-preview__title {
+  margin: 0 0 0.5rem;
+  font-size: 12px;
+  color: var(--amber);
+  letter-spacing: 0.05em;
+}
+
+/* frame grid (server launch-cast render) */
+.frame {
+  margin-top: 1.5rem;
+}
+.frame__marker {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--amber);
+}
+.frame__grid {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.2;
+  background: #000;
+  color: var(--paper);
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  white-space: pre;
+}
+.frame__row {
+  display: block;
+  height: 1.2em;
+}
+.frame__cell {
+  display: inline-block;
+  white-space: pre;
+}
+
+/* ── responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 880px) {
+  /* Stacked narrow layout: let the document scroll instead of clipping the
+     one-screen desktop grid. */
+  .app {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+  main {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+  .insp-pane {
+    overflow-y: visible;
+  }
+  .pane + .pane,
+  .insp-pane {
+    border-left: none;
+  }
+  .timeline {
+    overflow-x: auto;
+  }
+  .wave-wrap,
+  .filmstrip {
+    min-width: 640px;
+  }
+  .ratio {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+  footer.status {
+    overflow-x: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+/* ═══════════════════════════════════════════════════════════════════════════
+   v2 UX refactor (engineering/docs/v2-ux-refactor-brief.md).
+
+   Ported from prototype/ux/v2.html. Rules below EXTEND and, where they share a
+   selector, OVERRIDE the shipped chrome above — appended last so equal-
+   specificity selectors win. Grouped by brief work item.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── §3A welcome / onboarding ───────────────────────────────────────────── */
+.welcome {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--ink);
+  background-image: radial-gradient(
+      1000px 520px at 50% -20%,
+      rgba(255, 180, 84, 0.07),
+      transparent 60%
+    ),
+    radial-gradient(800px 420px at 10% 120%, rgba(90, 209, 230, 0.05), transparent 55%);
+}
+.wel-card {
+  width: min(680px, 100%);
+  text-align: left;
+}
+/* ── Nibbles mascot (assets/INTEGRATION_GUIDE.md §3, §5, §6) ─────────────────
+   The welcome hero is the full-body mascot; the editor header carries only the
+   head, so each view shows exactly one Nibbles. `prefers-reduced-motion` above
+   (global) already neutralises `float`. */
+.wel-mascot-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.wel-mascot {
+  /* Shrinks on short viewports so the fixed, centered card never overflows. */
+  width: min(140px, 22vh);
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.5));
+}
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+/* Empty "Recent" state — Nibbles tangled in tape (§5). */
+.wel-recent-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+}
+.wel-empty-art {
+  width: min(96px, 14vh);
+  height: auto;
+  object-fit: contain;
+  opacity: 0.85;
+}
+/* Export loader — the render pipeline is the one genuinely long op (§4). */
+.export-mascot {
+  display: block;
+  width: 84px;
+  height: auto;
+  object-fit: contain;
+  margin: 0 auto 12px;
+}
+
+.wel-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 26px;
+}
+.wel-brand .dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 14px var(--amber-glow);
+}
+.wel-brand b {
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+.wel-brand .tag {
+  color: var(--dim);
+  font-size: 11px;
+}
+.wel-lede {
+  font-size: 15px;
+  line-height: 1.75;
+  margin: 0 0 30px;
+  max-width: 46ch;
+}
+.wel-lede .hi {
+  color: var(--amber);
+}
+.wel-acts {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+.wel-btn {
+  flex: 1;
+  min-width: 210px;
+  text-align: left;
+  cursor: pointer;
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 15px 17px;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  color: inherit;
+  font-family: inherit;
+}
+.wel-btn:hover {
+  border-color: var(--line-bright);
+  background: #161d21;
+}
+.wel-btn:active {
+  transform: translateY(1px);
+}
+.wel-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.wel-btn.primary {
+  border-color: var(--amber-deep);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 180, 84, 0.1),
+    rgba(255, 180, 84, 0.03)
+  );
+}
+.wel-btn.primary:hover {
+  border-color: var(--amber);
+}
+.wel-btn .t {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.wel-btn .t .ic {
+  color: var(--amber);
+}
+.wel-btn .s {
+  color: var(--dim);
+  font-size: 11px;
+  margin-top: 5px;
+  line-height: 1.55;
+  display: block;
+}
+.wel-recent .rl {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 0.2em;
+  margin-bottom: 9px;
+}
+.wel-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 12px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+}
+.wel-row:hover {
+  background: var(--panel);
+  border-color: var(--line);
+}
+.wel-row .nm {
+  color: var(--paper);
+}
+.wel-row .mt {
+  margin-left: auto;
+  color: var(--faint);
+  font-size: 10.5px;
+}
+.wel-foot {
+  margin-top: 30px;
+  color: var(--faint);
+  font-size: 10.5px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.welcome .error {
+  margin-top: 18px;
+}
+
+/* ── §3B header declutter: dirty dot ────────────────────────────────────── */
+.file .dirty {
+  color: var(--amber);
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* ── §3B footer: keys behind a chip, hints toggle ───────────────────────── */
+.chip {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--dim);
+  padding: 3px 9px;
+  font-size: 10.5px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  font-family: inherit;
+}
+.chip:hover {
+  border-color: var(--line-bright);
+  color: var(--paper);
+}
+.chip.on {
+  border-color: var(--amber-deep);
+  color: var(--amber);
+}
+.keys {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.keys.on {
+  display: flex;
+}
+
+/* ── §3C inspector: per-segment ratio + window bar + compact rows ───────── */
+.ratio-seg {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 4px 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+.ratio-seg .win {
+  color: var(--faint);
+  text-decoration: line-through;
+  text-decoration-color: var(--faint);
+  font-size: 12px;
+}
+.ratio-seg .arw {
+  color: var(--amber-deep);
+  font-size: 10px;
+  letter-spacing: -0.05em;
+}
+.ratio-seg .out {
+  color: var(--amber);
+  font-weight: 700;
+  font-size: 18px;
+  text-shadow: 0 0 14px var(--amber-glow);
+}
+.ratio-seg .on {
+  color: var(--dim);
+  font-size: 10px;
+}
+.wbar {
+  display: flex;
+  height: 9px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--inset);
+}
+.wbar i {
+  display: block;
+  height: 100%;
+}
+.wbar i.p {
+  background: linear-gradient(180deg, var(--amber), var(--amber-deep));
+}
+.wbar i.h {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--amber-deep),
+    var(--amber-deep) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+  opacity: 0.8;
+}
+.wlegend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: var(--faint);
+  margin: 3px 0 13px;
+  font-variant-numeric: tabular-nums;
+}
+.crow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+.crow > label {
+  width: 42px;
+  font-size: 10px;
+  color: var(--dim);
+  flex: 0 0 auto;
+}
+.cstep {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--inset);
+  overflow: hidden;
+}
+.cstep button {
+  background: var(--panel);
+  border: none;
+  color: var(--paper);
+  width: 26px;
+  height: 23px;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+.cstep button:hover {
+  background: #182025;
+  color: var(--amber);
+}
+.cstep b {
+  min-width: 54px;
+  text-align: center;
+  color: var(--amber);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hintslot {
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+  font-size: 10.5px;
+  color: var(--dim);
+  min-height: 34px;
+  line-height: 1.55;
+}
+.insp__empty .big {
+  color: var(--paper);
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* ── §3D IN/OUT nudge marks ─────────────────────────────────────────────── */
+.marks .ml {
+  display: flex;
+  align-items: center;
+}
+.marks .ml .snap {
+  margin-left: auto;
+  color: var(--faint);
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+}
+.mark .row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+}
+.mark .mv {
+  flex: 1;
+  text-align: center;
+  margin-top: 0;
+}
+.nudge {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--paper);
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.nudge:hover {
+  border-color: var(--amber-deep);
+  color: var(--amber);
+}
+.marks-sub {
+  color: var(--faint);
+  font-size: 10px;
+  margin: 5px 0 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── §3E solo / loop ────────────────────────────────────────────────────── */
+.solo-row {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin: 2px 0 13px;
+}
+.solo {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: rgba(90, 209, 230, 0.08);
+  border: 1px solid rgba(90, 209, 230, 0.45);
+  color: var(--cyan);
+  border-radius: 3px;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+  font-family: inherit;
+}
+.solo:hover {
+  background: rgba(90, 209, 230, 0.16);
+}
+.solo.on {
+  background: var(--cyan);
+  color: #06232a;
+  border-color: var(--cyan);
+}
+.loopb {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--dim);
+  padding: 7px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.loopb.on {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: rgba(90, 209, 230, 0.1);
+}
+
+/* ── §3E/§3H preview overlays: solo badge + source frame ────────────────── */
+.titlebar .badge {
+  margin-left: auto;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  border: 1px solid rgba(90, 209, 230, 0.4);
+  border-radius: 2px;
+  padding: 1px 6px;
+}
+.screen {
+  position: relative;
+}
+.source-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--d-bg, #282a36);
+  overflow: auto;
+  padding: 12px 14px;
+  z-index: 4;
+}
+.source-overlay .frame {
+  border: none;
+  padding: 0;
+}
+.cuthere {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(90, 209, 230, 0.1);
+  border: 1px solid rgba(90, 209, 230, 0.5);
+  color: var(--cyan);
+  border-radius: 3px;
+  padding: 5px 11px;
+  font-size: 11px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: inherit;
+}
+.cuthere:hover {
+  background: rgba(90, 209, 230, 0.2);
+}
+
+/* ── §3H activity-lane scrub guide + solo mask ──────────────────────────── */
+.timeline-hero .wave-wrap {
+  position: relative;
+}
+.timeline__canvas {
+  cursor: crosshair;
+}
+.scrub {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--cyan);
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 6;
+}
+.scrubchip {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  background: rgba(10, 13, 15, 0.94);
+  border: 1px solid var(--line-bright);
+  border-radius: 2px;
+  padding: 1px 7px;
+  font-size: 9.5px;
+  white-space: nowrap;
+  color: var(--paper);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  z-index: 7;
+}
+.scrubchip .kept {
+  color: var(--amber);
+}
+.scrubchip .dead {
+  color: var(--dim);
+}
+.scrubchip .miss {
+  color: var(--cyan);
+}
+.solomask {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(5, 7, 8, 0.68);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* ── §3A first-run coach mark ───────────────────────────────────────────── */
+.coach {
+  position: absolute;
+  z-index: 8;
+  background: var(--panel);
+  border: 1px solid var(--amber-deep);
+  border-left: 3px solid var(--amber);
+  border-radius: 3px;
+  padding: 8px 11px;
+  font-size: 11px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+  max-width: 290px;
+  line-height: 1.55;
+}
+.coach b {
+  color: var(--amber);
+}
+.coach .dismiss {
+  display: block;
+  margin-top: 7px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--dim);
+  font-size: 10.5px;
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: inherit;
+}
+
+/* ── §3F/§3G contact sheet ──────────────────────────────────────────────── */
+.sheet {
+  margin-top: 8px;
+}
+.leaders {
+  display: block;
+  width: 100%;
+  height: 15px;
+  overflow: visible;
+}
+.leaders line {
+  stroke: var(--line-bright);
+  stroke-width: 1;
+}
+.leaders line.sel {
+  stroke: var(--amber);
+  stroke-width: 1.5;
+}
+.leaders circle {
+  fill: var(--line-bright);
+}
+.leaders circle.sel {
+  fill: var(--amber);
+}
+.contact {
+  position: relative;
+  /* Compact filmstrip: the contact sheet is a reference aid, not the main
+     stage, so it yields vertical budget to the preview and cuts lane above. */
+  height: 84px;
+}
+.contact.cutmode {
+  overflow-x: auto;
+}
+.shot {
+  position: absolute;
+  top: 0;
+  width: 150px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--inset);
+  cursor: pointer;
+  margin: 0;
+  transition: border-color 0.14s, transform 0.1s;
+}
+.shot:hover {
+  border-color: var(--line-bright);
+  transform: translateY(-1px);
+}
+.shot.sel {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 1px var(--amber), 0 0 20px var(--amber-glow);
+}
+.shot.playing {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 1px var(--cyan), 0 0 20px var(--cyan-glow);
+}
+.shot.dragging {
+  opacity: 0.55;
+  z-index: 9;
+}
+.contact.cutmode .shot {
+  cursor: grab;
+}
+.contact.cutmode .shot:active {
+  cursor: grabbing;
+}
+.shot .thumb {
+  height: 54px;
+  background: var(--d-bg, #282a36);
+  overflow: hidden;
+  position: relative;
+  border-bottom: 1px solid #000;
+}
+.shot .mini {
+  margin: 0;
+  transform: scale(0.34);
+  transform-origin: top left;
+  width: 294%;
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 6px 8px;
+  white-space: pre;
+  color: var(--d-fg, #f8f8f2);
+  font-family: var(--mono);
+}
+.shot .zoom {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(10, 13, 15, 0.82);
+  border: 1px solid var(--line-bright);
+  border-radius: 2px;
+  color: var(--paper);
+  width: 21px;
+  height: 21px;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.14s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 3;
+  font-family: inherit;
+}
+.shot:hover .zoom {
+  opacity: 1;
+}
+.shot .zoom:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.shot .meta {
+  padding: 5px 8px 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+}
+.shot .meta .sid {
+  color: var(--amber);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+.shot .meta .slab {
+  color: var(--dim);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.shot .meta .sdur {
+  color: var(--paper);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.shot .playdot {
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan-glow);
+  opacity: 0;
+  z-index: 3;
+}
+.shot.soloing .playdot {
+  opacity: 1;
+}
+.shot .ord {
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  z-index: 3;
+  background: rgba(10, 13, 15, 0.9);
+  border: 1px solid var(--line-bright);
+  border-radius: 2px;
+  color: var(--paper);
+  font-size: 9px;
+  padding: 0 5px;
+  letter-spacing: 0.06em;
+}
+.shot .reorder {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  display: flex;
+  gap: 3px;
+  z-index: 4;
+}
+.shot .reorder button {
+  background: rgba(10, 13, 15, 0.9);
+  border: 1px solid var(--line-bright);
+  border-radius: 2px;
+  color: var(--paper);
+  width: 19px;
+  height: 19px;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  font-family: inherit;
+}
+.shot .reorder button:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.shot .reorder button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.contact-empty {
+  color: var(--faint);
+  font-size: 11px;
+  padding: 14px 2px;
+}
+.capbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.stripmode {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.stripmode button {
+  background: var(--panel);
+  border: none;
+  color: var(--dim);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  cursor: pointer;
+  border-right: 1px solid var(--line);
+  font-family: inherit;
+}
+.stripmode button:last-child {
+  border-right: none;
+}
+.stripmode button:hover {
+  color: var(--paper);
+}
+.stripmode button.on {
+  background: rgba(255, 180, 84, 0.12);
+  color: var(--amber);
+}
+.stripmode button.auto {
+  background: rgba(90, 209, 230, 0.14);
+  color: var(--cyan);
+}
+
+/* ── §3F lightbox for the enlarged frame ────────────────────────────────── */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 7, 8, 0.82);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 70;
+  padding: 26px;
+}
+.lb-card {
+  width: min(860px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+}
+.lb-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.lb-h .sid {
+  color: var(--amber);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.lb-h .x {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  width: 26px;
+  height: 26px;
+  color: var(--dim);
+  cursor: pointer;
+  font-family: inherit;
+}
+.lb-h .x:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+.lb-b {
+  background: var(--d-bg, #282a36);
+  padding: 16px 18px;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: auto;
+  max-height: 60vh;
+}
+.lb-b .frame {
+  border: none;
+  padding: 0;
+}
+.lb-b .notice {
+  color: var(--d-fg, #f8f8f2);
+}
+.lb-f {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 11px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── footer live dot: unsaved state ─────────────────────────────────────── */
+.status .live .rec.unsaved {
+  background: var(--amber);
+  box-shadow: 0 0 8px var(--amber-glow);
+}

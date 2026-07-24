@@ -1,0 +1,39 @@
+[package]
+name = "asciicut-server"
+description = "The native asciicut local HTTP server — axum + rust-embed wrapping asciicut-core (SPEC §7.2)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+# Library-only (no `[[bin]]`): keeping the HTTP surface a library leaves
+# `asciicut` as the *only* binary target in the virtual workspace, so
+# `cargo run -- <file.cast>` resolves unambiguously (AC#3). The router, handlers,
+# rust-embed asset store, and async `serve` entry all live here so they are
+# integration-testable in-process via `tower`'s `oneshot` — no real socket bind.
+
+[dependencies]
+# The single shared engine crate — parse/frame/compose/serialize all live here.
+asciicut-core = { path = "../asciicut-core" }
+# The transport-agnostic command bridge (CASTCU-S2-T02): frame/thumbs/activity/
+# compose/project/save all live here now — this crate is a thin axum adapter
+# over it (routes.rs maps `asciicut_bridge::BridgeError` to the existing HTTP
+# status contract). `dto.rs` re-exports the bridge's wire DTOs for import
+# compatibility.
+asciicut-bridge = { path = "../asciicut-bridge" }
+
+# Native-only server stack, pinned in the workspace root (shared with `asciicut`).
+axum.workspace = true
+tokio.workspace = true
+rust-embed.workspace = true
+mime_guess.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+# In-process endpoint tests drive the router with `tower::ServiceExt::oneshot`
+# (no socket bind); `http-body-util` collects the response body bytes.
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+tempfile = "3"

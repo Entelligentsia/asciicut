@@ -1,0 +1,62 @@
+# asciicut-desktop — the Tauri v2 native shell (CASTCU-S2-T01).
+#
+# DETACHED workspace root. This crate carries its own `[workspace]` table and is
+# `exclude`d from the root virtual workspace (see repo-root Cargo.toml). That
+# split is deliberate (PLAN D1): it keeps Tauri's large native dependency tree
+# (wry / tao / webkit2gtk / soup3 bindings) out of the core/server `Cargo.lock`
+# and out of the shared `[workspace.dependencies]`, and it preserves the S1
+# invariant that `asciicut` is the SOLE binary reachable by a bare
+# `cargo run -- <file.cast>`. Consequence (PLAN D2): this crate is NOT covered by
+# the root `cargo fmt --all` / `cargo clippy --all-targets`; the run convention
+# adds parallel `--manifest-path crates/asciicut-desktop/Cargo.toml` invocations.
+[package]
+name = "asciicut-desktop"
+description = "The asciicut Tauri v2 desktop shell — renders the reused SolidJS SPA in the native webview (SPEC §7; CASTCU-S2-T01)."
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Entelligentsia"]
+repository = "https://github.com/entelligentsia/asciicut"
+
+# Own (empty) workspace table → this crate is its own workspace root with its own
+# Cargo.lock, fully detached from the core/server virtual workspace above it.
+[workspace]
+
+# main/lib split (Tauri v2 convention): the thin `main.rs` delegates to `run()`
+# in the library so the entry point stays mobile-ready and testable. `staticlib`
+# / `cdylib` targets are what the mobile toolchains link; `rlib` keeps it usable
+# as a normal Rust library on desktop.
+[lib]
+name = "asciicut_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dev-dependencies]
+# Enable the unstable `tauri::test` mock-runtime utilities for desktop-crate
+# integration tests (runtime_smoke.rs).
+tauri = { version = "2", features = ["test"] }
+
+[dependencies]
+# No fs/dialog/shell plugins yet — native file ops (native Open, "no restart to
+# open a different cast") are T03. This crate DOES now register its own
+# `#[tauri::command]` handlers (commands.rs); Tauri v2 app-registered commands
+# need no capabilities/permission grant (D3), so `capabilities/default.json`
+# stays `core:default` only.
+tauri = { version = "2", features = [] }
+# Native OS open/save dialogs (CASTCU-S2-T03). Invoked from Rust commands, so
+# the SPA needs no dialog permission grant — least-privilege.
+tauri-plugin-dialog = "2"
+# Sidecar process spawning for bundled agg/ffmpeg binaries (CASTCU-S2-T04).
+tauri-plugin-shell = "2"
+# Serialization used by the menu/quit event payloads shared with the SPA, and
+# required in the crate root for `tauri::generate_context!()` to resolve.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# The transport-agnostic command bridge (CASTCU-S2-T02): the exact same
+# frame/thumbs/activity/compose/project/save operations `asciicut-server`'s
+# axum routes call. Path dependency into the root virtual workspace — Cargo
+# resolves and builds it independently for this detached workspace (its own
+# target dir / lockfile entry), verified conflict-free (PLAN D1).
+asciicut-bridge = { path = "../asciicut-bridge" }

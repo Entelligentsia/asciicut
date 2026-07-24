@@ -1,0 +1,24 @@
+[package]
+name = "asciicut-core"
+description = "The single shared asciicut engine crate (VT + compose), compiled to native and wasm32-unknown-unknown."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[lib]
+# `rlib` lets native workspace crates depend on this as a normal Rust library;
+# `cdylib` makes the wasm build emit a `asciicut_core.wasm` artifact (AC#3).
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# JSON decode of the `.cast` header object + `[t, code, data]` event lines.
+# Versions inherit from the workspace so all crates share one pin.
+serde = { workspace = true }
+serde_json = { workspace = true }
+# asciinema's virtual terminal — replays the event stream `0..T` to produce the
+# frame-at-T grid (CASTCU-S1-T03). Inherits the single workspace pin so the
+# native ↔ wasm parity contract can't drift on a version skew. This core crate
+# is the only avt consumer this sprint.
+avt = { workspace = true }

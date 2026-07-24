@@ -1,0 +1,6 @@
+# Sidecar binaries are downloaded at build/packaging time, not committed.
+# See fetch-sidecars.sh and README.md for source URLs, versions, and checksums.
+sidecars/agg-*
+sidecars/ffmpeg-*
+# Generated attribution file — reproduced at fetch time from README.md data.
+sidecars/ATTRIBUTION.md
