@@ -84,12 +84,11 @@ jobs:
             crates/asciicut-desktop/target
           key: ${{ runner.os }}-cargo-desktop-${{ hashFiles('crates/asciicut-desktop/Cargo.lock') }}
 
-      - name: Format check (detached desktop workspace)
-        run: cargo fmt --all --manifest-path crates/asciicut-desktop/Cargo.toml -- --check
-
-      - name: Clippy (detached desktop workspace, deny warnings)
-        run: cargo clippy --all-targets --all-features --manifest-path crates/asciicut-desktop/Cargo.toml -- -D warnings
-
+      # Fetch sidecars BEFORE any compile step: tauri-build validates the
+      # externalBin resources declared in tauri.conf.json at build-script time,
+      # which both `cargo clippy` and `tauri build` trigger — so the binaries
+      # must already be staged or the build script fails with "resource path
+      # `sidecars/agg-<triple>` doesn't exist".
       - name: Fetch bundled sidecars (agg + ffmpeg)
         run: ./sidecars/fetch-sidecars.sh
         working-directory: crates/asciicut-desktop
@@ -101,6 +100,12 @@ jobs:
           # `${VAR:-default}` falls back on.
           FFMPEG_MACOS_X86_64_URL: ${{ secrets.FFMPEG_MACOS_X86_64_URL }}
           FFMPEG_MACOS_AARCH64_URL: ${{ secrets.FFMPEG_MACOS_AARCH64_URL }}
+
+      - name: Format check (detached desktop workspace)
+        run: cargo fmt --all --manifest-path crates/asciicut-desktop/Cargo.toml -- --check
+
+      - name: Clippy (detached desktop workspace, deny warnings)
+        run: cargo clippy --all-targets --all-features --manifest-path crates/asciicut-desktop/Cargo.toml -- -D warnings
 
       - name: Build installer(s)
         run: npm run tauri -- build --bundles ${{ matrix.bundles }}
