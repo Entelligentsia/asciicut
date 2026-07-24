@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>asciicut — See what you cut — A visual editor for terminal recordings</title>
+    <meta name="description"
+        content="asciicut is a visual editor for asciinema terminal recordings (.cast files). Spot the dead air on an activity timeline, trim, pace, and export clean clips as GIF, MP4, WebM, or cast.">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/logomark_head_transparent.png" />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <!-- asciinema-player CSS (v3) -->
+    <link rel="stylesheet" type="text/css"
+        href="https://cdn.jsdelivr.net/npm/asciinema-player@3.8.0/dist/bundle/asciinema-player.css" />
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css?v=2" />
+</head>
+
+<body>
+    <!-- Header Navigation -->
+    <header class="main-header">
+        <div class="container header-container">
+            <a href="#" class="logo-link">
+                <img src="assets/logomark_head_transparent.png" alt="asciicut logo" class="logo-icon" />
+                <span class="logo-text">asciicut</span>
+            </a>
+            <nav class="main-nav">
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#interactive-demo" class="nav-link">Demo</a>
+                <a href="#install" class="nav-link">Install</a>
+                <a href="#cli-vs-gui" class="nav-link">CLI & GUI</a>
+                <a href="#nibbles" class="nav-link">Mascot</a>
+            </nav>
+            <div class="header-actions">
+                <a href="https://github.com/Entelligentsia/asciicut" class="github-button" target="_blank"
+                    rel="noopener noreferrer">
+                    <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                        <path
+                            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z">
+                        </path>
+                    </svg>
+                    GitHub
+                </a>
+            </div>
+        </div>
+    </header>
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container hero-container">
+            <div class="hero-content">
+                <div class="hero-badge">⚡ Visual Terminal Editor</div>
+                <h1 class="hero-title">See what you cut.</h1>
+                <p class="hero-subtitle">
+                    You recorded your terminal with <a href="https://asciinema.org" target="_blank"
+                        rel="noopener noreferrer" class="highlight-text inline-link">asciinema</a>, and most of it is
+                    waiting—a spinner turning, a build compiling.
+                    <strong>asciicut</strong> lets you see that dead air and slice it out, turning a slow 15-minute
+                    recording into a tight 40-second demo clip.
+                </p>
+                <!-- Command line executor mock -->
+                <div class="command-box">
+                    <span class="prompt-char">$</span>
+                    <code id="npm-cmd">npx asciicut demo.cast</code>
+                    <button class="copy-btn" id="copy-cmd-btn" aria-label="Copy command">
+                        <span class="copy-text">Copy</span>
+                        <svg class="copy-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor"
+                            stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="hero-actions-row">
+                    <a href="https://github.com/Entelligentsia/asciicut/releases" class="btn btn-primary"
+                        target="_blank">
+                        Download App
+                    </a>
+                    <a href="#install" class="btn btn-secondary">
+                        Install CLI
+                    </a>
+                </div>
+            </div>
+            <div class="hero-mascot-area">
+                <div class="mascot-radial-glow"></div>
+                <div class="mascot-float-wrap">
+                    <img src="assets/logo_master_transparent.png"
+                        alt="Nibbles the Beaver - asciicut mascot holding giant scissors and wearing safety goggles"
+                        class="hero-mascot-img" />
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Interactive Demonstration Widget Section -->
+    <section id="interactive-demo" class="demo-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Experience the Visual Cut</h2>
+                <p class="section-description">Play a real <a href="https://asciinema.org" target="_blank"
+                        rel="noopener noreferrer" class="inline-link">asciinema</a> recording, or test our interactive
+                    timeline simulator below to see how easy cutting terminal dead air becomes.</p>
+            </div>
+            <!-- Demo Container -->
+            <div class="demo-card-container">
+                <!-- Tab headers -->
+                <div class="demo-tabs">
+                    <button class="demo-tab-btn active" data-tab="interactive-editor">
+                        <span>✂️ Interactive Timeline Cut</span>
+                    </button>
+                    <button class="demo-tab-btn" data-tab="live-player">
+                        <span>▶️ Live Terminal Player</span>
+                    </button>
+                </div>
+                <!-- Tab 1: Interactive Editor Mock -->
+                <div class="demo-tab-content active" id="tab-interactive-editor">
+                    <div class="editor-mock-header">
+                        <div class="editor-mock-title">
+                            <span class="circle red"></span>
+                            <span class="circle yellow"></span>
+                            <span class="circle green"></span>
+                            <span class="file-name">demo_recording.cast — asciicut</span>
+                        </div>
+                        <div class="editor-mock-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Original:</span>
+                                <span class="stat-val font-mono">2m 14s</span>
+                            </div>
+                            <div class="stat-item highlight-green">
+                                <span class="stat-label">Composed:</span>
+                                <span class="stat-val font-mono" id="composed-duration">2m 14s</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="editor-timeline-workspace">
+                        <!-- Waveform area -->
+                        <div class="timeline-waveform-container">
+                            <div class="timeline-label">Activity Waveform (Spikes = Typing/Build, Valleys = Dead Air)
+                            </div>
+                            <div class="waveform-display" id="waveform-display">
+                                <!-- Waveform segments will be generated in JS -->
+                            </div>
+                        </div>
+                        <!-- Filmstrip area -->
+                        <div class="timeline-filmstrip-container">
+                            <div class="timeline-label">Visual Filmstrip (Hover to scrub frames)</div>
+                            <div class="filmstrip-display" id="filmstrip-display">
+                                <!-- Will be generated by script -->
+                            </div>
+                        </div>
+                        <!-- Track blocks (segments) -->
+                        <div class="timeline-tracks-container">
+                            <div class="timeline-label">Cut Segments (Paced & Kept Ranges)</div>
+                            <div class="tracks-display" id="tracks-display">
+                                <!-- Will be generated by script -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="editor-controls-footer">
+                        <div class="speed-control-display">
+                            <span class="control-title">Active Segment:</span>
+                            <div class="segment-pill" id="active-segment-pill">s1 (Build Process)</div>
+                            <div class="settings-group">
+                                <label>Speed:</label>
+                                <span class="val-mono font-mono" id="speed-val">1.0x</span>
+                            </div>
+                        </div>
+                        <div class="action-buttons-group">
+                            <button class="btn btn-warning btn-sm" id="btn-reset-demo">Reset</button>
+                            <button class="btn btn-primary btn-snip" id="btn-snip-demo">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="6" cy="6" r="3"></circle>
+                                    <circle cx="6" cy="18" r="3"></circle>
+                                    <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+                                    <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+                                    <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+                                </svg>
+                                Auto-Snip Dead Air
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Tab 2: Live Asciinema Player -->
+                <div class="demo-tab-content" id="tab-live-player">
+                    <div class="live-player-container">
+                        <!-- Player target -->
+                        <div id="player-container"></div>
+                    </div>
+                    <div class="player-footer-note">
+                        Playing <code class="font-mono">test-dir-ops.cast</code> (12 KB) terminal recording directly in
+                        your browser.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Key Features Grid -->
+    <section id="features" class="features-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title font-title">Why asciicut?</h2>
+                <p class="section-description">Asciicut solves the terminal editing workflow problem with speed, visual
+                    clarity, and automation.</p>
+            </div>
+            <div class="features-grid">
+                <!-- Feature 1 -->
+                <div class="feature-card">
+                    <div class="feature-icon bg-red">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2"
+                            fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-card-title">📉 Spot Dead Air Instantly</h3>
+                    <p class="feature-card-text">
+                        The activity timeline parses terminal change density and renders a waveform. Waiting, compile
+                        jobs, or AI thinking stages immediately stand out as flat valleys.
+                    </p>
+                </div>
+                <!-- Feature 2 -->
+                <div class="feature-card">
+                    <div class="feature-icon bg-yellow">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2"
+                            fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="21" y1="9" x2="3" y2="9"></line>
+                            <line x1="21" y1="15" x2="3" y2="15"></line>
+                            <line x1="12" y1="3" x2="12" y2="21"></line>
+                        </svg>
+                    </div>
+                    <h3 class="feature-card-title">✂️ Cut by Looking</h3>
+                    <p class="feature-card-text">
+                        A filmstrip of actual terminal screenshots runs along the timeline. Drag handles directly on the
+                        timeline based on what's visible, eliminating numeric timestamp guessing.
+                    </p>
+                </div>
+                <!-- Feature 3 -->
+                <div class="feature-card">
+                    <div class="feature-icon bg-green">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2"
+                            fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                    <h3 class="feature-card-title">⏩ Precise Speed & Holds</h3>
+                    <p class="feature-card-text">
+                        Assign custom speeds to individual sections (e.g. 5x through a build process) and hold the end
+                        frame (freeze) so viewers can actually read the final result before the loop ends.
+                    </p>
+                </div>
+                <!-- Feature 4 -->
+                <div class="feature-card">
+                    <div class="feature-icon bg-blue">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2"
+                            fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-card-title">📦 Dynamic Video Exports</h3>
+                    <p class="feature-card-text">
+                        Export as trimmed asciicast `.cast` files, or render directly into share-ready MP4, WebM, or GIF
+                        videos. Video compilers are bundled inside—no ffmpeg setup required.
+                    </p>
+                </div>
+                <!-- Feature 5 -->
+                <div class="feature-card">
+                    <div class="feature-icon bg-purple">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2"
+                            fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                            </path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                    </div>
+                    <h3 class="feature-card-title">🤖 Agent-Native Integration</h3>
+                    <p class="feature-card-text">
+                        Includes a dedicated Model Context Protocol (MCP) server. AI developers and coding agents can
+                        programmatically inspect terminal frames and compose cuts autonomously.
+                    </p>
+                </div>
+                <!-- Feature 6 -->
+                <div class="feature-card">
+                    <div class="feature-icon bg-orange">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2"
+                            fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                            <polyline points="2 17 12 22 22 17"></polyline>
+                            <polyline points="2 12 12 17 22 12"></polyline>
+                        </svg>
+                    </div>
+                    <h3 class="feature-card-title">⚡ High-Performance Core</h3>
+                    <p class="feature-card-text">
+                        Built on a single Rust engine. It runs locally as a supercharged CLI/Tauri app, or compiles to
+                        WebAssembly for browser-side execution with zero backend dependency.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Installation Section -->
+    <section id="install" class="install-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Install asciicut</h2>
+                <p class="section-description">Get up and running with a single command or installer.</p>
+            </div>
+            <div class="install-grid">
+                <!-- CLI tab selectors -->
+                <div class="install-methods">
+                    <button class="install-tab-btn active" data-install="npx">
+                        <span>npm / npx</span>
+                    </button>
+                    <button class="install-tab-btn" data-install="cargo">
+                        <span>Rust / Cargo</span>
+                    </button>
+                    <button class="install-tab-btn" data-install="brew">
+                        <span>Homebrew</span>
+                    </button>
+                    <button class="install-tab-btn" data-install="desktop">
+                        <span>Desktop App</span>
+                    </button>
+                </div>
+                <!-- CLI code blocks -->
+                <div class="install-content-panel">
+                    <!-- NPX -->
+                    <div class="install-tab-content-item active" id="inst-npx">
+                        <h4 class="install-panel-title">Run without installing</h4>
+                        <p class="install-panel-desc">Launch the interactive visual editor directly in your default
+                            browser using Node/npm:</p>
+                        <div class="code-terminal-box">
+                            <div class="terminal-dots">
+                                <span class="circle red"></span>
+                                <span class="circle yellow"></span>
+                                <span class="circle green"></span>
+                            </div>
+                            <pre class="code-line"><code>npx asciicut my_recording.cast</code></pre>
+                            <button class="copy-btn-code" data-copy="npx asciicut my_recording.cast">Copy</button>
+                        </div>
+                    </div>
+                    <!-- Cargo -->
+                    <div class="install-tab-content-item" id="inst-cargo">
+                        <h4 class="install-panel-title">Build & install via Rust</h4>
+                        <p class="install-panel-desc">Install the binary globally to use the CLI and headless features
+                            directly on your system:</p>
+                        <div class="code-terminal-box">
+                            <div class="terminal-dots">
+                                <span class="circle red"></span>
+                                <span class="circle yellow"></span>
+                                <span class="circle green"></span>
+                            </div>
+                            <pre class="code-line"><code>cargo install asciicut</code></pre>
+                            <button class="copy-btn-code" data-copy="cargo install asciicut">Copy</button>
+                        </div>
+                    </div>
+                    <!-- Brew -->
+                    <div class="install-tab-content-item" id="inst-brew">
+                        <h4 class="install-panel-title">Install via Homebrew tap</h4>
+                        <p class="install-panel-desc">Keep the binary up-to-date with our public Homebrew repository
+                            tap:</p>
+                        <div class="code-terminal-box">
+                            <div class="terminal-dots">
+                                <span class="circle red"></span>
+                                <span class="circle yellow"></span>
+                                <span class="circle green"></span>
+                            </div>
+                            <pre class="code-line"><code>brew tap entelligentsia/tap
+brew install asciicut</code></pre>
+                            <button class="copy-btn-code"
+                                data-copy="brew tap entelligentsia/tap && brew install asciicut">Copy</button>
+                        </div>
+                    </div>
+                    <!-- Desktop -->
+                    <div class="install-tab-content-item" id="inst-desktop">
+                        <h4 class="install-panel-title">Install visually</h4>
+                        <p class="install-panel-desc">Get the standalone Tauri-powered desktop application, self-bundled
+                            with video compression engines.</p>
+                        <div class="desktop-download-grid">
+                            <a href="https://github.com/Entelligentsia/asciicut/releases/latest" class="download-card"
+                                target="_blank">
+                                <span class="os-icon">🍎</span>
+                                <span class="os-name">macOS</span>
+                                <span class="file-ext">.dmg (Apple/Intel)</span>
+                            </a>
+                            <a href="https://github.com/Entelligentsia/asciicut/releases/latest" class="download-card"
+                                target="_blank">
+                                <span class="os-icon">💻</span>
+                                <span class="os-name">Windows</span>
+                                <span class="file-ext">.msi / .exe</span>
+                            </a>
+                            <a href="https://github.com/Entelligentsia/asciicut/releases/latest" class="download-card"
+                                target="_blank">
+                                <span class="os-icon">🐧</span>
+                                <span class="os-name">Linux</span>
+                                <span class="file-ext">.AppImage / .deb</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- CLI vs GUI Walkthrough Section -->
+    <section id="cli-vs-gui" class="cli-vs-gui-section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">CLI Speed vs GUI Precision</h2>
+                <p class="section-description">Asciicut is one binary that plays both roles. A project file created in
+                    the GUI works identically on the command line.</p>
+            </div>
+            <div class="split-view">
+                <!-- Left: CLI Details -->
+                <div class="split-column">
+                    <div class="column-card">
+                        <h3 class="column-title">💻 Headless Command Line</h3>
+                        <p class="column-text">Script your editing workflow, automate clip rendering in CI pipelines, or
+                            power AI agent edits:</p>
+
+                        <div class="cli-walkthrough">
+                            <div class="cli-step">
+                                <div class="step-num">1</div>
+                                <div class="step-detail">
+                                    <div class="step-label">Open casting in visual editor (local server)</div>
+                                    <pre class="cli-code"><code>asciicut my_demo.cast</code></pre>
+                                </div>
+                            </div>
+                            <div class="cli-step">
+                                <div class="step-num">2</div>
+                                <div class="step-detail">
+                                    <div class="step-label">Compose cut from a JSON spec headlessly</div>
+                                    <pre class="cli-code"><code>asciicut compose project.json > cut.cast</code></pre>
+                                </div>
+                            </div>
+                            <div class="cli-step">
+                                <div class="step-num">3</div>
+                                <div class="step-detail">
+                                    <div class="step-label">Directly compile a project spec into a GIF/MP4</div>
+                                    <pre class="cli-code"><code>asciicut render project.json --format gif</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Right: GUI Screenshots Carousel -->
+                <div class="split-column">
+                    <div class="column-card">
+                        <h3 class="column-title">🎨 Visual Desktop App</h3>
+                        <p class="column-text">Enjoy frame-perfect timeline drag handles, real-time preview playback,
+                            and custom theme presets:</p>
+
+                        <div class="screenshot-carousel">
+                            <div class="carousel-track">
+                                <div class="carousel-slide active" data-slide="1">
+                                    <img src="assets/shot-editor-live.png"
+                                        alt="Asciicut visual editor UI showing timeline and filmstrip"
+                                        class="carousel-img" />
+                                    <div class="carousel-caption">
+                                        <h4>Visual Waveform Timeline</h4>
+                                        <p>Drag segments to select exactly what typing actions and output lines to keep.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="carousel-slide" data-slide="2">
+                                    <img src="assets/shot-inspector.png"
+                                        alt="Segment inspector with speed and hold fields" class="carousel-img" />
+                                    <div class="carousel-caption">
+                                        <h4>Pacing Inspector</h4>
+                                        <p>Accelerate compile tasks or freeze the final frame to allow details to be
+                                            read.</p>
+                                    </div>
+                                </div>
+                                <div class="carousel-slide" data-slide="3">
+                                    <img src="assets/shot-export.png" alt="Export dialog in asciicut"
+                                        class="carousel-img" />
+                                    <div class="carousel-caption">
+                                        <h4>Multi-Format Export</h4>
+                                        <p>Output your cut as a compressed .cast, web-ready GIF, high-res MP4, or WebM.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="carousel-nav">
+                                <button class="carousel-indicator active" data-go="1"></button>
+                                <button class="carousel-indicator" data-go="2"></button>
+                                <button class="carousel-indicator" data-go="3"></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Mascot Focus Section -->
+    <section id="nibbles" class="mascot-section">
+        <div class="container mascot-grid-box">
+            <div class="mascot-visual">
+                <img src="assets/ui_splice_operator.gif" alt="Nibbles splice animation" class="splice-anim-img" />
+            </div>
+            <div class="mascot-info">
+                <div class="mascot-badge">Meet the mascot</div>
+                <h2 class="mascot-name">Nibbles the Beaver</h2>
+                <p class="mascot-description">
+                    Equipped with safety goggles and oversized steel shears, <strong>Nibbles</strong> is always on duty
+                    to cut out the dead air.
+                    He runs the status indicators, helps you troubleshoot missing inputs when tangled in tape, and
+                    powers the progress loading overlays on a hamster wheel.
+                </p>
+                <div class="brand-colors-row">
+                    <span class="color-dot" style="background:#7E5A44;" title="Mascot Brown: #7E5A44"></span>
+                    <span class="color-dot" style="background:#FCD116;" title="Goggles Yellow: #FCD116"></span>
+                    <span class="color-dot" style="background:#39FF14;" title="Neon Code Green: #39FF14"></span>
+                    <span class="color-dot" style="background:#1A1B26;" title="Slate Blue: #1A1B26"></span>
+                    <span class="color-desc font-mono">Official Brand Palette</span>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="container footer-container">
+            <div class="footer-left">
+                <div class="footer-logo">
+                    <img src="assets/logomark_head_transparent.png" alt="asciicut" class="footer-logo-img" />
+                    <span>asciicut</span>
+                </div>
+                <p class="footer-credits">MIT licensed. Created with love by the <a href="https://entelligentsia.in" target="_blank" rel="noopener noreferrer" class="footer-entelligentsia-link">Entelligentsia</a> engineering team.</p>
+                <div class="footer-brand">
+                    <a href="https://entelligentsia.in" target="_blank" rel="noopener noreferrer" class="footer-brand-logo-link">
+                        <img src="assets/entelligentsia-square-logo.png" alt="Entelligentsia Logo" class="entelligentsia-logo-footer" />
+                    </a>
+                </div>
+            </div>
+            <div class="footer-right">
+                <div class="footer-links-group">
+                    <span class="links-title">Ecosystem</span>
+                    <a href="https://asciinema.org" target="_blank" rel="noopener noreferrer">Asciinema</a>
+                    <a href="https://github.com/asciinema/avt" target="_blank" rel="noopener noreferrer">avt
+                        emulator</a>
+                    <a href="https://github.com/asciinema/agg" target="_blank" rel="noopener noreferrer">agg
+                        renderer</a>
+                </div>
+                <div class="footer-links-group">
+                    <span class="links-title">Repository</span>
+                    <a href="https://github.com/Entelligentsia/asciicut" target="_blank"
+                        rel="noopener noreferrer">GitHub Project</a>
+                    <a href="https://github.com/Entelligentsia/asciicut/issues" target="_blank"
+                        rel="noopener noreferrer">Issue Tracker</a>
+                    <a href="https://github.com/Entelligentsia/asciicut/releases" target="_blank"
+                        rel="noopener noreferrer">Releases</a>
+                </div>
+            </div>
+        </div>
+        <div class="container copyright-bar">
+            <p>&copy; 2026 Entelligentsia. All rights reserved.</p>
+        </div>
+    </footer>
+    <!-- asciinema-player script (v3) -->
+    <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.8.0/dist/bundle/asciinema-player.min.js"></script>
+    <!-- Custom Script -->
+    <script src="script.js?v=2"></script>
+</body>
+
+</html>
