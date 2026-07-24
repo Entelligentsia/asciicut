@@ -29,10 +29,10 @@ jobs:
     name: Native (build · test · clippy · fmt)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -56,13 +56,13 @@ jobs:
     name: WASM (clippy · build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Add wasm target
         run: rustup target add wasm32-unknown-unknown
 
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -70,11 +70,14 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-wasm-${{ hashFiles('**/Cargo.lock') }}
 
+      # Scope wasm to the one crate that targets it (SPEC §7): asciicut-core.
+      # The workspace's server/CLI crates depend on tokio-net/mio, which
+      # hard-`compile_error!`s on wasm32, so an unscoped build fails there.
       - name: Clippy (wasm, deny warnings)
-        run: cargo clippy --target wasm32-unknown-unknown --all-features -- -D warnings
+        run: cargo clippy --target wasm32-unknown-unknown -p asciicut-core --all-features -- -D warnings
 
       - name: Build (wasm)
-        run: cargo build --target wasm32-unknown-unknown
+        run: cargo build --target wasm32-unknown-unknown -p asciicut-core
 
       - name: Verify asciicut_core.wasm artifact exists
         run: test -f target/wasm32-unknown-unknown/debug/asciicut_core.wasm
@@ -83,11 +86,11 @@ jobs:
     name: Web (typecheck · build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
 
@@ -99,7 +102,7 @@ jobs:
         run: rustup target add wasm32-unknown-unknown
 
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry

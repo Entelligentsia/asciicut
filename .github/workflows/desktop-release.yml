@@ -44,7 +44,7 @@ jobs:
             name: Windows (.msi + .exe/nsis)
             bundles: msi,nsis
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Linux system deps (WebKitGTK 4.1 + GTK3 + friends)
         if: matrix.os == 'ubuntu-latest'
@@ -65,9 +65,9 @@ jobs:
       - name: Add wasm target (SPA build:wasm step)
         run: rustup target add wasm32-unknown-unknown
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
 
@@ -76,7 +76,7 @@ jobs:
         working-directory: web
 
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -116,7 +116,7 @@ jobs:
         working-directory: web
 
       - name: Upload installer artifact(s)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: asciicut-${{ matrix.os }}
           path: |
