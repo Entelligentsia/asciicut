@@ -30,10 +30,28 @@ Keeping the codec set narrow lets us choose smaller redistributable static build
 | Linux x86_64 | `x86_64-unknown-linux-gnu` | [BtbN GPL static builds](https://github.com/BtbN/FFmpeg-Builds) | Pick the `gpl` variant; verify it includes libx264, libx265, libvpx |
 | Linux aarch64 | `aarch64-unknown-linux-gnu` | BtbN GPL static builds | Same variant as x86_64 |
 | Windows x86_64 | `x86_64-pc-windows-msvc` | BtbN GPL static builds | `.exe` suffix is added by the fetch script |
-| macOS x86_64 | `x86_64-apple-darwin` | Self-built from FFmpeg source or a reputable static-build provider | Document source URL + build flags |
-| macOS aarch64 | `aarch64-apple-darwin` | Self-built from FFmpeg source or a reputable static-build provider | Same as x86_64 |
+| macOS x86_64 | `x86_64-apple-darwin` | [OSXExperts GPL static build](https://www.osxexperts.net/) — `ffmpeg80intel.zip` | Default in `fetch-sidecars.sh` (SHA-256 pinned); override with `FFMPEG_MACOS_X86_64_URL` |
+| macOS aarch64 | `aarch64-apple-darwin` | [OSXExperts GPL static build](https://www.osxexperts.net/) — `ffmpeg81arm.zip` | Default in `fetch-sidecars.sh` (SHA-256 pinned); override with `FFMPEG_MACOS_AARCH64_URL` |
 
 The **Linux x86_64** path is proven first on the development box (CASTCU-S2-T04). macOS and Windows sourcing are verified during packaged-build testing in CASTCU-S2-T06.
+
+### macOS ffmpeg default sources
+
+`fetch-sidecars.sh` defaults the two macOS ffmpeg URLs to OSXExperts' GPL static
+builds (which include libx264, libx265, and libvpx), with their published
+SHA-256 checksums **pinned in the script and verified on download**:
+
+| Triple | Default URL | SHA-256 |
+|---|---|---|
+| `x86_64-apple-darwin` | `https://www.osxexperts.net/ffmpeg80intel.zip` | `df3f1e3facdc1ae0ad0bd898cdfb072fbc9641bf47b11f172844525a05db8d11` |
+| `aarch64-apple-darwin` | `https://www.osxexperts.net/ffmpeg81arm.zip` | `9a08d61f9328e8164ba560ee7a79958e357307fcfeea6fe626b7d66cdc287028` |
+
+Set `FFMPEG_MACOS_X86_64_URL` / `FFMPEG_MACOS_AARCH64_URL` (as CI/org secrets or
+env vars) to use your own build instead — the pinned checksum is enforced **only
+when the default URL is used**, so an override is never rejected against a
+checksum it can't match. An alternative Intel-only source is
+[evermeet.cx](https://evermeet.cx/ffmpeg/) (use a versioned `ffmpeg-<ver>.zip`
+URL so the script's `.zip` extractor matches).
 
 ## `agg` source
 
