@@ -57,6 +57,8 @@ samples/*.composed.cast
 !web/public/assets/*.png
 !assets/*.gif
 !web/public/assets/*.gif
+# README demo screencast (app in use) + rendered edit output live in assets/.
+!assets/*.mp4
 
 # ─────────────────────────────────────────────────────────────────────────────
 # OS / editor

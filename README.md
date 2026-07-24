@@ -15,7 +15,21 @@ No guessing timestamps. No blind `cut --start 60 --end 470`. You watch the
 recording and cut it by looking.
 
 <p align="center">
-  <img src="assets/screenshot-editor.jpg" alt="The asciicut editor — a live preview of the composed cut, an activity timeline, a filmstrip of real frames, and per-segment speed and hold controls" width="900" />
+  <img src="assets/shot-editor.png" alt="The asciicut editor — a live preview of the composed cut, an activity timeline, a filmstrip of real frames, and per-segment speed and hold controls" width="900" />
+</p>
+
+---
+
+## See it in action
+
+<p align="center">
+  <video src="https://github.com/Entelligentsia/asciicut/raw/main/assets/demo.mp4" controls muted loop width="820"></video>
+  <br /><sub><i>Cutting a recording in the app. (No player? <a href="assets/demo.mp4">Download the clip</a>.)</i></sub>
+</p>
+
+<p align="center">
+  <img src="assets/demo-cut.gif" alt="A composed asciicut edit playing back — a command fires, then a dashboard fast-forwards by — rendered straight to GIF" width="760" />
+  <br /><sub><i>…and the result — an edit composed and rendered by asciicut itself. A slow stretch of the recording, trimmed and fast‑forwarded into a few seconds.</i></sub>
 </p>
 
 ---
@@ -36,7 +50,7 @@ Your original recording is never changed. Every edit is just a set of
 instructions layered on top, so you can retrim, reorder, and undo freely.
 
 <p align="center">
-  <img src="assets/screenshot-timeline.png" alt="An activity timeline drawn as a waveform above a filmstrip of the kept segments with their durations" width="900" />
+  <img src="assets/shot-timeline.png" alt="An activity timeline drawn as a waveform above a filmstrip of the kept segments with their durations" width="900" />
   <br /><sub><i>The activity timeline — flat stretches are dead air — above the filmstrip of kept segments.</i></sub>
 </p>
 
@@ -100,6 +114,21 @@ Full prerequisites and packaging notes:
 6. **Export.** Hit **Export cut** and choose `.cast`, MP4, WebM, or GIF. Done.
 
 That's the whole loop: **see → cut → pace → export.**
+
+<p align="center">
+  <img src="assets/shot-editor-live.png" alt="The asciicut editor mid-playback: preview, activity timeline, filmstrip, and per-segment controls" width="880" />
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="assets/shot-welcome.png" alt="asciicut welcome screen" /><br /><sub><b>1 · Open</b> — welcome screen, or File → Open.</sub></td>
+    <td width="50%" align="center"><img src="assets/shot-inspector.png" alt="Segment inspector with speed and hold controls" /><br /><sub><b>4 · Pace</b> — per‑segment speed, hold, and in/out.</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/shot-preview.png" alt="Live preview of the composed cut" /><br /><sub><b>5 · Preview</b> — the composed cut plays as you edit.</sub></td>
+    <td align="center"><img src="assets/shot-export.png" alt="Export drawer with format options" /><br /><sub><b>6 · Export</b> — .cast, MP4, WebM, or GIF.</sub></td>
+  </tr>
+</table>
 
 ---
 
