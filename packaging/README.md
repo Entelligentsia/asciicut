@@ -66,27 +66,44 @@ the release also produce a portable Tauri build (zip) and add a bucket repo
 
 ---
 
-## CLI / `npx asciicut` (planned — SPEC §7)
+## CLI / `npx asciicut`  ✅ configured (cargo-dist)
 
 The `asciicut` binary is also a CLI + local web server (`asciicut file.cast`).
-SPEC's locked plan distributes it via **cargo-dist**, which generates all of
-these from one config:
+It's distributed via **cargo-dist** (config in [`dist-workspace.toml`](../dist-workspace.toml),
+workflow in [`.github/workflows/release.yml`](../.github/workflows/release.yml)),
+which on a version tag builds the binary for every target and produces:
 
 - **npm / `npx asciicut`** — the flagship one-liner
-- **Homebrew formula** (the CLI binary, distinct from the GUI cask above)
-- **`curl | sh`** shell installer
-- **cargo-binstall** metadata
+- **Homebrew formula** (the CLI binary, published to the same `homebrew-tap`;
+  distinct from the GUI cask above)
+- **`curl | sh`** shell installer (`asciicut-installer.sh`)
+- **cargo-binstall**-compatible tarballs + `sha256.sum`
 
-Setup (follow-up, needs a crates.io + npm token):
+Because `asciicut` embeds the SolidJS SPA (rust-embed), the release workflow
+builds the web bundle first — see [`.github/workflows/build-setup.yml`](../.github/workflows/build-setup.yml).
+
+**How a release flows** (one tag drives everything):
 
 ```sh
-cargo install cargo-dist
-dist init                 # choose: shell, npm, homebrew installers
-dist generate             # writes the release workflow
+# bump version in Cargo.toml / tauri.conf.json, then:
+git tag v0.2.0 && git push origin v0.2.0
 ```
 
-Keep this pipeline separate from `desktop-release.yml` — it ships the CLI
-binary, not the GUI installers.
+1. `release.yml` (cargo-dist) builds the CLI, **creates the GitHub Release**,
+   and publishes the npm package + Homebrew formula.
+2. Publishing the release fires `release: published`, so `desktop-release.yml`
+   appends the GUI installers (`.dmg`/`.msi`/`.AppImage`/`.deb`) + attestations.
+
+**To activate**, provision once:
+
+- **`NPM_TOKEN`** repo secret — an npm automation token (npm publish).
+- **`Entelligentsia/homebrew-tap`** repo + **`HOMEBREW_TAP_TOKEN`** secret — a PAT
+  with write access to the tap (a cross-repo push; `GITHUB_TOKEN` can't do it).
+- Claim the unscoped **`asciicut`** name on npm (or set an `npm-scope` in
+  `dist-workspace.toml` for a scoped `npx @scope/asciicut`).
+
+Validate end-to-end on a throwaway pre-release tag (e.g. `v0.0.0-rc1`) before the
+first real one — the dist ⇄ desktop-release coordination hasn't been run yet.
 
 ---
 

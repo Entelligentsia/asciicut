@@ -47,3 +47,8 @@ mime_guess = "2"
 # `bytemuck` transitively via `rgb`) is wasm-safe (its only `std::fs` use is
 # `#[cfg(test)]`).
 avt = "0.18.0"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
