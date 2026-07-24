@@ -31,16 +31,18 @@ FFMPEG_WIN_X86_64_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/l
 
 # macOS builds are not provided by BtbN. Default to OSXExperts' GPL static
 # builds (libx264/libx265/libvpx — the codecs asciicut exports with); override
-# FFMPEG_MACOS_X86_64_URL / FFMPEG_MACOS_AARCH64_URL to use your own. The pinned
-# SHA-256 below is enforced ONLY when the default URL is used, so an override is
-# never rejected against a checksum it can't match.
-FFMPEG_MACOS_X86_64_DEFAULT_URL="https://www.osxexperts.net/ffmpeg80intel.zip"
-FFMPEG_MACOS_X86_64_DEFAULT_SHA256="df3f1e3facdc1ae0ad0bd898cdfb072fbc9641bf47b11f172844525a05db8d11"
-FFMPEG_MACOS_AARCH64_DEFAULT_URL="https://www.osxexperts.net/ffmpeg81arm.zip"
-FFMPEG_MACOS_AARCH64_DEFAULT_SHA256="9a08d61f9328e8164ba560ee7a79958e357307fcfeea6fe626b7d66cdc287028"
-
-FFMPEG_MACOS_X86_64_URL="${FFMPEG_MACOS_X86_64_URL:-$FFMPEG_MACOS_X86_64_DEFAULT_URL}"
-FFMPEG_MACOS_AARCH64_URL="${FFMPEG_MACOS_AARCH64_URL:-$FFMPEG_MACOS_AARCH64_DEFAULT_URL}"
+# FFMPEG_MACOS_X86_64_URL / FFMPEG_MACOS_AARCH64_URL to use your own.
+#
+# Like the BtbN Linux/Windows "latest" URLs above, OSXExperts serves a rolling
+# "latest for the major" under a stable filename, so NO checksum is pinned by
+# default — a hard pin would drift and break the build every time OSXExperts
+# republishes. To harden a specific build for reproducibility, set
+# FFMPEG_MACOS_X86_64_SHA256 / FFMPEG_MACOS_AARCH64_SHA256 and it is verified on
+# download (an empty value = no verification, matching the other platforms).
+FFMPEG_MACOS_X86_64_URL="${FFMPEG_MACOS_X86_64_URL:-https://www.osxexperts.net/ffmpeg80intel.zip}"
+FFMPEG_MACOS_AARCH64_URL="${FFMPEG_MACOS_AARCH64_URL:-https://www.osxexperts.net/ffmpeg81arm.zip}"
+FFMPEG_MACOS_X86_64_SHA256="${FFMPEG_MACOS_X86_64_SHA256:-}"
+FFMPEG_MACOS_AARCH64_SHA256="${FFMPEG_MACOS_AARCH64_SHA256:-}"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Platform detection
@@ -155,14 +157,12 @@ fetch_ffmpeg() {
     return 1
   fi
 
-  # Enforce a pinned checksum only when the effective URL is our default (an
-  # override supplies its own trusted source and cannot match this checksum).
+  # Optional checksum: verify only when a SHA-256 was supplied for this arch
+  # (empty by default, like the rolling Linux/Windows builds).
   local expected_sha=""
   case "$triple" in
-    x86_64-apple-darwin)
-      [ "$url" = "$FFMPEG_MACOS_X86_64_DEFAULT_URL" ] && expected_sha="$FFMPEG_MACOS_X86_64_DEFAULT_SHA256" ;;
-    aarch64-apple-darwin)
-      [ "$url" = "$FFMPEG_MACOS_AARCH64_DEFAULT_URL" ] && expected_sha="$FFMPEG_MACOS_AARCH64_DEFAULT_SHA256" ;;
+    x86_64-apple-darwin)  expected_sha="$FFMPEG_MACOS_X86_64_SHA256" ;;
+    aarch64-apple-darwin) expected_sha="$FFMPEG_MACOS_AARCH64_SHA256" ;;
   esac
 
   echo "  ffmpeg: $url"

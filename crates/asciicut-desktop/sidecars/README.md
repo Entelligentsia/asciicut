@@ -38,20 +38,25 @@ The **Linux x86_64** path is proven first on the development box (CASTCU-S2-T04)
 ### macOS ffmpeg default sources
 
 `fetch-sidecars.sh` defaults the two macOS ffmpeg URLs to OSXExperts' GPL static
-builds (which include libx264, libx265, and libvpx), with their published
-SHA-256 checksums **pinned in the script and verified on download**:
+builds (which include libx264, libx265, and libvpx):
 
-| Triple | Default URL | SHA-256 |
-|---|---|---|
-| `x86_64-apple-darwin` | `https://www.osxexperts.net/ffmpeg80intel.zip` | `df3f1e3facdc1ae0ad0bd898cdfb072fbc9641bf47b11f172844525a05db8d11` |
-| `aarch64-apple-darwin` | `https://www.osxexperts.net/ffmpeg81arm.zip` | `9a08d61f9328e8164ba560ee7a79958e357307fcfeea6fe626b7d66cdc287028` |
+| Triple | Default URL |
+|---|---|
+| `x86_64-apple-darwin` | `https://www.osxexperts.net/ffmpeg80intel.zip` |
+| `aarch64-apple-darwin` | `https://www.osxexperts.net/ffmpeg81arm.zip` |
 
-Set `FFMPEG_MACOS_X86_64_URL` / `FFMPEG_MACOS_AARCH64_URL` (as CI/org secrets or
-env vars) to use your own build instead — the pinned checksum is enforced **only
-when the default URL is used**, so an override is never rejected against a
-checksum it can't match. An alternative Intel-only source is
-[evermeet.cx](https://evermeet.cx/ffmpeg/) (use a versioned `ffmpeg-<ver>.zip`
-URL so the script's `.zip` extractor matches).
+Like the BtbN Linux/Windows "latest" builds above, OSXExperts serves a rolling
+"latest for the major" under a **stable filename**, so the contents change when
+they republish. The script therefore does **not** pin a checksum by default (a
+pin would break the build on every upstream rebuild). To harden a specific build
+for reproducibility, set `FFMPEG_MACOS_X86_64_SHA256` / `FFMPEG_MACOS_AARCH64_SHA256`
+(env or CI secret) — when non-empty, the download is verified against it.
+
+Override the source entirely with `FFMPEG_MACOS_X86_64_URL` /
+`FFMPEG_MACOS_AARCH64_URL`. An alternative Intel-only source with **versioned,
+immutable** URLs (so a pinned checksum stays valid) is
+[evermeet.cx](https://evermeet.cx/ffmpeg/) — use a `ffmpeg-<ver>.zip` URL so the
+script's `.zip` extractor matches.
 
 ## `agg` source
 
