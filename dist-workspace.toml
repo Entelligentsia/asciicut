@@ -19,7 +19,7 @@ hosting = "github"
 install-updater = false
 # Publish the generated Homebrew formula (the CLI binary) to this tap repo.
 tap = "Entelligentsia/homebrew-tap"
-publish-jobs = ["homebrew"]
+publish-jobs = ["homebrew", "npm"]
 # The `asciicut` binary embeds the SolidJS SPA via rust-embed at compile time, so
 # the web bundle must be built BEFORE `dist build` runs cargo. These steps are
 # injected into each build job — see .github/workflows/build-setup.yml.

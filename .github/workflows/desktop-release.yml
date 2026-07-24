@@ -16,8 +16,15 @@
 name: Desktop release build
 
 on:
-  release:
-    types: [published]
+  # Tag-driven, in lockstep with the cargo-dist Release workflow: the same
+  # version tag triggers both. dist builds the CLI + creates the GitHub Release;
+  # this workflow builds the GUI installers and attaches them to that release
+  # (waiting for dist to create it). We key off the TAG, not release:published,
+  # because dist creates the release with GITHUB_TOKEN and Actions-created
+  # releases don't fire release events for other workflows.
+  push:
+    tags:
+      - '**[0-9]+.[0-9]+.[0-9]+*'
   workflow_dispatch: {}
 
 env:
@@ -159,12 +166,15 @@ jobs:
           if-no-files-found: ignore
 
       - name: Attach installers to the GitHub Release
-        # Only when triggered by a published release (not a manual dispatch,
-        # which has no release to attach to — those keep the run artifact above).
-        if: github.event_name == 'release'
+        # On a version-tag build, wait for dist's Release workflow to create the
+        # GitHub Release (it runs in parallel), then upload the GUI installers to
+        # it. Skipped on manual dispatch (no release to attach to — the run
+        # artifact above is kept).
+        if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
           shopt -s nullglob
           # .dmg (not .app, which is a directory) is the macOS release asset.
@@ -180,7 +190,17 @@ jobs:
             echo "no installer files found to attach" >&2
             exit 1
           fi
-          gh release upload "${{ github.event.release.tag_name }}" "${files[@]}" --clobber
+          # dist's Release workflow creates the release in parallel — wait for it
+          # (up to ~10 min) before uploading, since GUI builds usually finish
+          # after dist's host job but the ordering isn't guaranteed.
+          for i in $(seq 1 60); do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              echo "release $TAG exists"; break
+            fi
+            echo "waiting for release $TAG (dist creates it)… attempt $i/60"
+            sleep 10
+          done
+          gh release upload "$TAG" "${files[@]}" --clobber
 
       - name: Linux packaged-build smoke (window launch + resolver + real export)
         if: matrix.os == 'ubuntu-latest'
