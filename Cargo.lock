@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "asciicut"
-version = "0.2.0-rc.1"
+version = "0.1.0"
 dependencies = [
  "asciicut-core",
  "asciicut-server",
@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "asciicut-bridge"
-version = "0.2.0-rc.1"
+version = "0.1.0"
 dependencies = [
  "asciicut-core",
  "serde",
@@ -22,7 +22,7 @@ dependencies = [
 
 [[package]]
 name = "asciicut-core"
-version = "0.2.0-rc.1"
+version = "0.1.0"
 dependencies = [
  "avt",
  "serde",
@@ -31,7 +31,7 @@ dependencies = [
 
 [[package]]
 name = "asciicut-server"
-version = "0.2.0-rc.1"
+version = "0.1.0"
 dependencies = [
  "asciicut-bridge",
  "asciicut-core",
