@@ -14,6 +14,10 @@ becomes a tight 40‑second clip you'd actually want to share.
 No guessing timestamps. No blind `cut --start 60 --end 470`. You watch the
 recording and cut it by looking.
 
+<p align="center">
+  <img src="assets/screenshot-editor.jpg" alt="The asciicut editor — a live preview of the composed cut, an activity timeline, a filmstrip of real frames, and per-segment speed and hold controls" width="900" />
+</p>
+
 ---
 
 ## What you can do
@@ -30,6 +34,11 @@ recording and cut it by looking.
 
 Your original recording is never changed. Every edit is just a set of
 instructions layered on top, so you can retrim, reorder, and undo freely.
+
+<p align="center">
+  <img src="assets/screenshot-timeline.png" alt="An activity timeline drawn as a waveform above a filmstrip of the kept segments with their durations" width="900" />
+  <br /><sub><i>The activity timeline — flat stretches are dead air — above the filmstrip of kept segments.</i></sub>
+</p>
 
 ---
 
