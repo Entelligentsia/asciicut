@@ -97,6 +97,24 @@ download() {
   fi
 }
 
+# Extract a .zip into a destination dir with whatever tool is available. Git
+# Bash on the Windows CI runner may not ship `unzip`, so fall back to 7z and
+# then bsdtar (`tar` on Windows/macOS handles zip).
+extract_zip() {
+  local zip="$1"
+  local dest="$2"
+  if command -v unzip >/dev/null 2>&1; then
+    unzip -q "$zip" -d "$dest"
+  elif command -v 7z >/dev/null 2>&1; then
+    7z x -y -o"$dest" "$zip" >/dev/null
+  elif command -v tar >/dev/null 2>&1; then
+    tar -xf "$zip" -C "$dest"
+  else
+    echo "  need unzip, 7z, or tar to extract $(basename "$zip")" >&2
+    return 1
+  fi
+}
+
 # Verify a downloaded file against an expected SHA-256. A no-op when `expected`
 # is empty (nothing pinned for this source). Uses shasum (present on macOS) or
 # sha256sum (present on Linux); warns rather than failing if neither exists.
@@ -187,7 +205,7 @@ fetch_ffmpeg() {
     *.zip)
       download "$url" "$tmp/ffmpeg.zip"
       verify_sha256 "$tmp/ffmpeg.zip" "$expected_sha" || return 1
-      unzip -q "$tmp/ffmpeg.zip" -d "$tmp"
+      extract_zip "$tmp/ffmpeg.zip" "$tmp"
       ;;
     *)
       download "$url" "$out_bin"

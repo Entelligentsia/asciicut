@@ -90,6 +90,10 @@ jobs:
       # must already be staged or the build script fails with "resource path
       # `sidecars/agg-<triple>` doesn't exist".
       - name: Fetch bundled sidecars (agg + ffmpeg)
+        # Force bash: on windows-latest the default shell is PowerShell, which
+        # dot-sources this .sh as a PowerShell script (silent no-op, exit 0) and
+        # stages no sidecars. Git Bash runs it as intended.
+        shell: bash
         run: ./sidecars/fetch-sidecars.sh
         working-directory: crates/asciicut-desktop
         env:
