@@ -119,6 +119,14 @@ jobs:
       - name: Clippy (detached desktop workspace, deny warnings)
         run: cargo clippy --all-targets --all-features --manifest-path crates/asciicut-desktop/Cargo.toml -- -D warnings
 
+      # The cargo cache (keyed on the detached desktop crate's Cargo.lock) can
+      # carry a previous version's installers in target/release/bundle. If they
+      # linger, the checksum/attest steps see two versions and fail. Wipe the
+      # bundle dir so only this build's installers exist.
+      - name: Clean stale installer bundles
+        shell: bash
+        run: rm -rf crates/asciicut-desktop/target/release/bundle
+
       - name: Build installer(s)
         run: npm run tauri -- build --bundles ${{ matrix.bundles }}
         working-directory: web
