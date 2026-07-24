@@ -281,10 +281,11 @@
                             <line x1="12" y1="22.08" x2="12" y2="12"></line>
                         </svg>
                     </div>
-                    <h3 class="feature-card-title">🤖 Agent-Native Integration</h3>
+                    <h3 class="feature-card-title">🤖 Agent-Native by Design</h3>
                     <p class="feature-card-text">
-                        Includes a dedicated Model Context Protocol (MCP) server. AI developers and coding agents can
-                        programmatically inspect terminal frames and compose cuts autonomously.
+                        The same engine exposes the activity signal and any terminal frame as text/JSON, so coding agents
+                        can find dead air and compose cuts headlessly today. A dedicated Model Context Protocol (MCP)
+                        server is on the roadmap.
                     </p>
                 </div>
                 <!-- Feature 6 -->
@@ -320,7 +321,7 @@
                         <span>npm / npx</span>
                     </button>
                     <button class="install-tab-btn" data-install="cargo">
-                        <span>Rust / Cargo</span>
+                        <span>Shell (curl)</span>
                     </button>
                     <button class="install-tab-btn" data-install="brew">
                         <span>Homebrew</span>
@@ -348,17 +349,18 @@
                     </div>
                     <!-- Cargo -->
                     <div class="install-tab-content-item" id="inst-cargo">
-                        <h4 class="install-panel-title">Build & install via Rust</h4>
-                        <p class="install-panel-desc">Install the binary globally to use the CLI and headless features
-                            directly on your system:</p>
+                        <h4 class="install-panel-title">Install the prebuilt binary</h4>
+                        <p class="install-panel-desc">Download the binary for your platform — no Rust toolchain required:
+                        </p>
                         <div class="code-terminal-box">
                             <div class="terminal-dots">
                                 <span class="circle red"></span>
                                 <span class="circle yellow"></span>
                                 <span class="circle green"></span>
                             </div>
-                            <pre class="code-line"><code>cargo install asciicut</code></pre>
-                            <button class="copy-btn-code" data-copy="cargo install asciicut">Copy</button>
+                            <pre class="code-line"><code>curl --proto '=https' --tlsv1.2 -LsSf https://github.com/Entelligentsia/asciicut/releases/latest/download/asciicut-installer.sh | sh</code></pre>
+                            <button class="copy-btn-code"
+                                data-copy="curl --proto '=https' --tlsv1.2 -LsSf https://github.com/Entelligentsia/asciicut/releases/latest/download/asciicut-installer.sh | sh">Copy</button>
                         </div>
                     </div>
                     <!-- Brew -->
@@ -388,7 +390,7 @@ brew install asciicut</code></pre>
                                 target="_blank">
                                 <span class="os-icon">🍎</span>
                                 <span class="os-name">macOS</span>
-                                <span class="file-ext">.dmg (Apple/Intel)</span>
+                                <span class="file-ext">.dmg (Apple Silicon)</span>
                             </a>
                             <a href="https://github.com/Entelligentsia/asciicut/releases/latest" class="download-card"
                                 target="_blank">
@@ -435,15 +437,15 @@ brew install asciicut</code></pre>
                             <div class="cli-step">
                                 <div class="step-num">2</div>
                                 <div class="step-detail">
-                                    <div class="step-label">Compose cut from a JSON spec headlessly</div>
-                                    <pre class="cli-code"><code>asciicut compose project.json > cut.cast</code></pre>
+                                    <div class="step-label">Compose a cut from a project spec, headlessly</div>
+                                    <pre class="cli-code"><code>asciicut compose project.asciicut.json > cut.cast</code></pre>
                                 </div>
                             </div>
                             <div class="cli-step">
                                 <div class="step-num">3</div>
                                 <div class="step-detail">
-                                    <div class="step-label">Directly compile a project spec into a GIF/MP4</div>
-                                    <pre class="cli-code"><code>asciicut render project.json --format gif</code></pre>
+                                    <div class="step-label">Preview the composed cut in the visual editor</div>
+                                    <pre class="cli-code"><code>asciicut cut.cast</code></pre>
                                 </div>
                             </div>
                         </div>
