@@ -36,13 +36,16 @@ fn stage_sidecars_for_runtime_test() {
             std::fs::copy(&src_file, &dst_file).unwrap_or_else(|e| {
                 panic!("copy {} to {}: {e}", src_file.display(), dst_file.display())
             });
-            let mut perms = std::fs::metadata(&dst_file).unwrap().permissions();
+            // Make the copied sidecar executable. Unix-only: on Windows the
+            // `.exe` extension makes it runnable and there is no +x bit, so the
+            // whole block (and its `mut perms`) would be dead there.
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
+                let mut perms = std::fs::metadata(&dst_file).unwrap().permissions();
                 perms.set_mode(0o755);
+                std::fs::set_permissions(&dst_file, perms).unwrap();
             }
-            std::fs::set_permissions(&dst_file, perms).unwrap();
         } else {
             panic!(
                 "source sidecar not found: {} — run sidecars/fetch-sidecars.sh",
