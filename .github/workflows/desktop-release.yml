@@ -1,9 +1,10 @@
 # Packaged desktop installer builds for asciicut (CASTCU-S2-T06).
 #
-# Manually triggered (workflow_dispatch), NOT part of ci.yml's per-push/PR
-# gate: a three-OS matrix that downloads a full ffmpeg static build per leg
-# is a release-shaped job, not a per-commit one — see BUILD.md's "CI
-# (macOS/Windows path)" section for the full rationale.
+# Trigger: on a published GitHub Release (ships the installer matrix with the
+# release), plus manual `workflow_dispatch` on demand. A three-OS matrix that
+# downloads a full ffmpeg static build per leg is a release-shaped job, never a
+# per-commit one — see BUILD.md's "CI (macOS/Windows path)" section for the
+# full rationale.
 #
 # Each matrix leg runs exactly the steps crates/asciicut-desktop/BUILD.md
 # documents for that platform: checkout, Rust + Node setup, (Linux only)
@@ -15,6 +16,8 @@
 name: Desktop release build
 
 on:
+  release:
+    types: [published]
   workflow_dispatch: {}
 
 env:

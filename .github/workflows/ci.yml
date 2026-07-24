@@ -10,11 +10,16 @@
 # and `cargo build` to produce and verify the `asciicut_core.wasm` artifact
 # (AC#3). The `wasm32-unknown-unknown` target is provisioned from
 # `rust-toolchain.toml`.
+#
+# Trigger: release-only. This build/test gate runs when a GitHub Release is
+# published (alongside desktop-release.yml's installer matrix), plus manual
+# `workflow_dispatch` on demand — deliberately NOT on every push/PR.
 name: CI
 
 on:
-  push:
-  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
