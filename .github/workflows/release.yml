@@ -133,10 +133,13 @@ jobs:
           "node-version": 22
       - name: "Add wasm target (for the embedded SPA)"
         run: "rustup target add wasm32-unknown-unknown"
+        shell: "bash"
       - name: "Build the embedded SPA (wasm + vite -> asciicut-server/web)"
         run: |
+          cd "$GITHUB_WORKSPACE/web"
           npm ci
           npm run build
+        shell: "bash"
       - name: Install dist
         run: ${{ matrix.install_dist.run }}
       # Get the dist-manifest

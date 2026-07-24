@@ -2,16 +2,22 @@
 # dist-workspace.toml. The `asciicut` binary embeds the SolidJS SPA with
 # rust-embed at compile time, so the web bundle (incl. the wasm core) must be
 # built here — before `dist build` runs `cargo build` — or the shipped
-# `asciicut file.cast` UI would be empty. Every step needs a `name` (dist's
-# template requires it).
+# `asciicut file.cast` UI would be empty.
+#
+# NOTE: dist's step template supports only name/run/uses/with/env/id/shell — it
+# drops `working-directory`, and it runs these steps from an unexpected cwd, so
+# use an ABSOLUTE path ($GITHUB_WORKSPACE = checkout root) with shell: bash for
+# consistent behavior across Linux/macOS/Windows. Every step needs a `name`.
 - name: Set up Node
   uses: actions/setup-node@v4
   with:
     node-version: 22
 - name: Add wasm target (for the embedded SPA)
+  shell: bash
   run: rustup target add wasm32-unknown-unknown
 - name: Build the embedded SPA (wasm + vite -> asciicut-server/web)
-  working-directory: web
+  shell: bash
   run: |
+    cd "$GITHUB_WORKSPACE/web"
     npm ci
     npm run build
