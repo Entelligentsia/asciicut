@@ -1,185 +1,132 @@
 # asciicut
 
-### the visual cutting room for terminal recordings
+### See what you cut — a visual editor for terminal recordings
 
 <p align="center">
   <img src="assets/logo_master_transparent.png" alt="Nibbles the Beaver — the asciicut mascot, in safety goggles holding a giant pair of scissors" width="240" />
 </p>
 
-`asciicut` is a visual editor for asciinema `.cast` files. Load a recording, **see
-where the dead air is** on an activity timeline, cut it, pace the rest, and export
-a tight clip as `.cast`, mp4, webm, or gif.
+You recorded your terminal with [asciinema](https://asciinema.org), and most of
+it is waiting — a spinner turning, a build compiling, nothing to watch. **asciicut**
+lets you *see* where that dead air is and cut it out, so a 17‑minute recording
+becomes a tight 40‑second clip you'd actually want to share.
 
-> Every existing asciicast tool is a blind CLI — `cut --start 60 --end 470` with
-> no way to *see* what you're removing. The asciinema project itself says there's
-> [no visual editor](https://docs.asciinema.org/faq/) "due to the incremental,
-> state-machine based nature of terminal emulators." That's true for editing
-> *pixels* — but not for editing *time*. asciicut edits time, and shows you the
-> recording while you do it.
-
-**Status:** 🛠 working — the editor and a **native desktop app** ship today: activity
-timeline, filmstrip, segment editing with per-segment speed/hold, live preview, and
-export to `.cast` + **mp4/webm/gif** with `agg`/`ffmpeg` bundled (no prerequisites).
-Agent/MCP tooling is next. See [Status](#status) and [`SPEC.md`](SPEC.md).
+No guessing timestamps. No blind `cut --start 60 --end 470`. You watch the
+recording and cut it by looking.
 
 ---
 
-## The problem
+## What you can do
 
-You record a 17-minute terminal session. 90% of it is the agent (or compiler, or
-deploy) *thinking* — a spinner turning, a timer incrementing, nothing to watch.
-The 10% worth keeping is scattered: a command firing, a view opening, a result
-landing. To ship a 40-second clip you have to find those moments and stitch them
-together.
+- 📉 **Spot the dead air instantly** — an activity timeline draws your recording as
+  a waveform. The quiet stretches are flat valleys you can see at a glance.
+- ✂️ **Cut by looking** — a filmstrip of real frames runs along the timeline, so
+  you trim against what's actually on screen, not against seconds you guessed.
+- ⏩ **Pace it like an edit** — keep the good parts, fast‑forward the waiting, and
+  hold on the final frame. Each piece gets its own speed and freeze.
+- ▶️ **Preview as you go** — the composed cut plays live while you edit.
+- 📦 **Export anywhere** — save as a trimmed `.cast`, or an **MP4 / WebM / GIF**.
+  The video tools are bundled — nothing extra to install.
 
-Today that means: play the cast, eyeball timestamps, run `asciinema-edit cut`
-against numbers you guessed, render, discover you clipped the wrong second,
-repeat. Speed-up filters flatten everything uniformly. Duplicate-frame droppers
-(`mpdecimate`) nuke the readable dwell time along with the dead air.
+Your original recording is never changed. Every edit is just a set of
+instructions layered on top, so you can retrim, reorder, and undo freely.
 
-There is no tool that **shows you the recording and lets you cut it by looking.**
+---
 
-## The idea
+## Install
 
-Three things existing tools don't have:
+### Download (recommended)
 
-1. **An activity timeline.** Change-density per time bucket, drawn as a waveform.
-   Dead air is a flat valley you can see at a glance and skip. This is the whole
-   game — *knowing where to cut* is the hard part, and no CLI shows it.
-2. **A filmstrip.** Real thumbnails along the timeline so you scrub against
-   frames, not blind seconds.
-3. **A segment model.** Non-destructive keep-ranges over the original cast, each
-   with its own **speed** and **freeze/hold** — fast-forward the waiting, stay 1×
-   on the payoff, hold 3s on the final frame. The manual control a "director's
-   cut" actually needs.
+Grab the installer for your system from the
+**[latest release](https://github.com/Entelligentsia/asciicut/releases/latest)**:
 
-Then: live preview, and one-click export to `.cast` + mp4/webm/gif.
+| Platform | File |
+|----------|------|
+| **macOS** | `.dmg` |
+| **Windows** | `.msi` or `.exe` |
+| **Linux** | `.AppImage` or `.deb` |
 
-## Why it's buildable
+> Installers are being published — if the Releases page is empty, they're on the
+> way. In the meantime, [build it yourself](#build-it-yourself); it's a few commands.
 
-The terminal is a state machine, so you can't repaint a character mid-stream. But
-to show the screen at any moment `T`, you replay the ANSI stream `0→T` through a
-headless terminal emulator ([avt](https://github.com/asciinema/avt), asciinema's
-own VT) and read the grid. Every edit is a **time** operation over an immutable
-event list — cut, reorder, rescale, hold — recomposed into a new cast. No pixel
-editing required.
+**First launch:** the app isn't code‑signed yet, so your OS may warn you the
+first time (macOS: right‑click → **Open**; Windows: **More info → Run anyway**).
+Full per‑platform steps: [`OPENING_UNSIGNED.md`](crates/asciicut-desktop/OPENING_UNSIGNED.md).
 
-## Using it
+### Build it yourself
 
-**The desktop app** (recommended — native window, native File → Open, bundled
-export). Built from source today; installers come from the release workflow:
+You'll need [Rust](https://rustup.rs), [Node.js](https://nodejs.org) 18+, and on
+**Linux** the WebKitGTK 4.1 + GTK 3 dev packages. Then:
 
 ```sh
+# one-time: add the wasm target + fetch the bundled agg/ffmpeg tools
+rustup target add wasm32-unknown-unknown
+(cd crates/asciicut-desktop && ./sidecars/fetch-sidecars.sh)
+
+# run the desktop app
 cd web
-npm run tauri dev        # run the desktop app from source
-npm run tauri build      # build installers for this platform
+npm install
+npm run tauri dev        # launch it
+npm run tauri build      # or build an installer for your platform
 ```
 
-Open a `.cast` with **File → Open** (`Ctrl/Cmd+O`), mark segments on the timeline,
-set per-segment speed/hold, preview live, then **Export** to `.cast` + `.mp4` /
-`.webm` / `.gif`. `agg` and `ffmpeg` ship inside the app — nothing to install.
+Full prerequisites and packaging notes:
+[`crates/asciicut-desktop/BUILD.md`](crates/asciicut-desktop/BUILD.md).
 
-**Browser mode** — one binary serves the same editor as a local web app:
+---
+
+## How to use it
+
+1. **Open a recording.** Launch asciicut and choose **File → Open** (`Ctrl/Cmd+O`),
+   then pick a `.cast` file. (New to asciinema? Record one with
+   `asciinema rec demo.cast`.)
+2. **Find the dead air.** The activity timeline shows your recording as a
+   waveform — busy moments spike, waiting goes flat. That's where to cut.
+3. **Mark what to keep.** Drag on the timeline to draw a segment, or drag a
+   segment's edges to trim it. Keep only the parts worth watching.
+4. **Set the pace.** Select a segment and give it a **speed** (fast‑forward the
+   boring bits) and a **hold** (freeze on a frame so a result lands before you
+   move on).
+5. **Watch it back.** The preview plays your composed cut live as you tweak.
+6. **Export.** Hit **Export cut** and choose `.cast`, MP4, WebM, or GIF. Done.
+
+That's the whole loop: **see → cut → pace → export.**
+
+---
+
+## Prefer the terminal?
+
+asciicut is one binary that's also a CLI and a local web app.
 
 ```sh
-asciicut recording.cast           # serves the editor; prints the local URL
+asciicut recording.cast                     # opens the editor in your browser
+asciicut compose recording.asciicut.json > cut.cast   # headless, scriptable
 ```
 
-**Headless compose** — no UI, deterministic, CI-friendly:
+Build the binary with `cargo build --release`; it lands at `target/release/asciicut`.
+The GUI, the browser editor, and the command line all use the same engine, so a
+cut composed one way is byte‑for‑byte identical to any other.
 
-```sh
-asciicut compose recording.asciicut.json > cut.cast
-```
-
-All three run the *same* compose engine, so the output is byte-identical.
-
-Build the core + CLI + server with `cargo build --release`; see
-[`crates/asciicut-desktop/BUILD.md`](crates/asciicut-desktop/BUILD.md) for the full
-per-platform packaging steps.
-
-## Two directors: you, or an agent
-
-The edit is a plain document — `forge_sprint.asciicut.json`: keep-ranges with per-
-segment speed and hold. Whoever writes it, the compose + render pipeline is the
-same. So asciicut has two front-ends to one engine:
-
-- **You**, in the GUI — cut by looking. *(shipping today)*
-- **An agent**, headless — *(planned, M6)* asciicut will expose MCP tools (`probe`,
-  `frame`, `compose`, `render`) plus a Skill. An agent reads the activity signal and
-  the terminal grid at any moment as **text/JSON** (not pixels), so it can find the
-  dead air, read the payoff frame, and author the director's cut on its own. With a
-  browser/vision tool it can also *look* — pick the hero frame and review its own
-  rendered clip.
-
-  The groundwork is already in place: `asciicut compose` composes a project
-  headlessly today, and the same edit document round-trips between agent and GUI.
-
-Agent drafts, human directs: the agent proposes a cut, you open the GUI on the same
-`.asciicut.json` to refine. See [`SPEC.md` §8](SPEC.md).
-
-## How it's built
-
-One **Rust core** (`asciicut-core`: parse · VT · activity signal · compose) compiled
-two ways — **native** for the CLI, the MCP server, and the local app's server, and
-**WASM** for the zero-install web demo — so the preview, the filmstrip, the agent's
-frames, and the exported cast all come from the *same* engine and can't drift apart.
-
-| | | |
-|---|---|---|
-| Core / VT | Rust · [avt](https://github.com/asciinema/avt) (native + WASM) | ✅ |
-| Shared ops | `asciicut-bridge` — one set of handlers behind both the server and the desktop app | ✅ |
-| Frame → video | [agg](https://github.com/asciinema/agg) → ffmpeg, bundled as sidecars | ✅ |
-| UI | SolidJS + Vite · [asciinema-player](https://github.com/asciinema/asciinema-player) for preview | ✅ |
-| Desktop | Tauri v2 — native window, in-process core, no localhost | ✅ |
-| Local server | one Rust binary = CLI + server, SPA embedded | ✅ |
-| Agent | MCP via `rmcp` + a Skill | 🔲 planned |
-
-Full reasoning and the alternative considered in [`SPEC.md` §7](SPEC.md).
-
-## Status
-
-| Milestone | | |
-|---|---|---|
-| M1 · `asciicut-core` — parse · VT · activity signal · compose | ✅ | golden-cast tests, native + WASM |
-| M2 · read-only visualizer — timeline, filmstrip, player preview | ✅ | |
-| M3 · segment editing — draw/drag, speed, hold, idle-cap, live preview | ✅ | |
-| M4 · export — `.cast` + mp4/webm/gif | ✅ | video export ships in the desktop app |
-| M7 · desktop — Tauri v2, native file dialogs, bundled sidecars | ✅ | pulled forward |
-| M5 · polish — auto-suggest cuts, markers/captions, keyboard editing | 🔲 | |
-| M6 · agent interface — headless CLI + MCP server + Skill | 🔲 | next |
-
-**Platform reality:** Linux is built and verified end-to-end. macOS and Windows
-installers build from the three-OS GitHub Actions matrix
-(`.github/workflows/desktop-release.yml`) but have not been run on real runners
-yet; a macOS build additionally needs an ffmpeg static-build URL supplied as a
-secret. All S2 builds are **unsigned** — see
-[`OPENING_UNSIGNED.md`](crates/asciicut-desktop/OPENING_UNSIGNED.md).
-
-## Prior art (all CLI, none visual)
-
-- [`cirocosta/asciinema-edit`](https://github.com/cirocosta/asciinema-edit) — cut / speed / quantize
-- [`pocc/asciinema-edit`](https://github.com/pocc/asciinema-edit) — rearrange / remove sections
-- [`alexyorke/asciinema-tools`](https://github.com/alexyorke/asciinema-tools) — trim / annotate
-- [`asciinema-scene`](https://discourse.asciinema.org/t/editing-tool-asciinema-scene/739) — scripted edits
-
-asciicut is the visual layer none of them have.
+---
 
 ## Meet Nibbles
 
 <img src="assets/logomark_head_transparent.png" align="right" width="120" alt="Nibbles the Beaver — logomark head with safety goggles" />
 
 **Nibbles the beaver** — safety goggles on, scissors ready — is asciicut's mascot,
-and turns up across the app: the header logomark, the welcome hero, the empty
-states, and the export loader. The full brand kit (logos, icons, illustrations,
-and a social banner) with usage guidelines lives in **[`assets/`](assets/README.md)**.
+and pops up around the app: the header, the welcome screen, empty states, and the
+export screen. The full brand kit lives in [`assets/`](assets/README.md).
 
-<table>
-  <tr>
-    <td align="center" width="33%"><img src="assets/logomark_head_transparent.png" width="110" alt="Logomark head" /><br /><sub><b>Logomark</b><br />favicon · app icon · header</sub></td>
-    <td align="center" width="33%"><img src="assets/ui_empty_state_transparent.png" width="110" alt="Nibbles tangled in terminal tape" /><br /><sub><b>Empty state</b><br />nothing loaded / selected</sub></td>
-    <td align="center" width="33%"><img src="assets/ui_loading_transparent.png" width="110" alt="Nibbles powering a progress bar" /><br /><sub><b>Loading</b><br />export &amp; init progress</sub></td>
-  </tr>
-</table>
+---
+
+## Under the hood
+
+asciicut is built on a single Rust engine (compiled native for the app and to
+WebAssembly for the browser) wrapped in a [Tauri](https://tauri.app) desktop
+shell and a [SolidJS](https://www.solidjs.com) interface, with
+[avt](https://github.com/asciinema/avt), [agg](https://github.com/asciinema/agg),
+and ffmpeg doing the terminal‑emulation and video work. Curious about the design,
+the roadmap, or the planned agent interface? It's all in **[`SPEC.md`](SPEC.md)**.
 
 ## License
 
