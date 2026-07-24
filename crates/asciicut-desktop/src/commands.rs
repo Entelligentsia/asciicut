@@ -462,10 +462,7 @@ pub struct OpenedCast {
 #[tauri::command]
 pub fn cast_path(state: State<SessionState>) -> Result<Option<String>, String> {
     let session = state.0.lock().expect("session mutex poisoned");
-    Ok(session
-        .cast_path()
-        .ok()
-        .map(|p| p.display().to_string()))
+    Ok(session.cast_path().ok().map(|p| p.display().to_string()))
 }
 
 /// `open_cast_path` — load a cast from an explicit path, with no dialog. This

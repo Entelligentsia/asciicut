@@ -126,7 +126,11 @@ pub fn run() {
         use tauri::RunEvent;
 
         if let RunEvent::ExitRequested { api, .. } = event {
-            if guard_dirty(&app_handle.state::<AppState>(), app_handle, QuitTarget::Quit) {
+            if guard_dirty(
+                &app_handle.state::<AppState>(),
+                app_handle,
+                QuitTarget::Quit,
+            ) {
                 api.prevent_exit();
             }
         }

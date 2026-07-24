@@ -113,7 +113,10 @@ pub fn temp_gif_path() -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or_default();
-    std::env::temp_dir().join(format!("asciicut-export-{}-{nanos}.gif", std::process::id()))
+    std::env::temp_dir().join(format!(
+        "asciicut-export-{}-{nanos}.gif",
+        std::process::id()
+    ))
 }
 
 /// `agg` args to render the composed `.cast` into a GIF at `gif_target`. No
@@ -193,7 +196,7 @@ pub fn parse_out_time_us(line: &[u8]) -> Option<i64> {
 pub fn parse_agg_progress(segment: &str) -> Option<(u64, u64)> {
     let (current, rest) = segment.trim().split_once('/')?;
     let current: u64 = current.trim().parse().ok()?;
-    let total: u64 = rest.trim_start().split_whitespace().next()?.parse().ok()?;
+    let total: u64 = rest.split_whitespace().next()?.parse().ok()?;
     if total == 0 {
         return None;
     }
@@ -626,7 +629,10 @@ mod tests {
             Some((83, 10430))
         );
         // First frame and the final 100% frame both parse.
-        assert_eq!(parse_agg_progress("1 / 10430 [>] 0.01 % 1.28/s 136m"), Some((1, 10430)));
+        assert_eq!(
+            parse_agg_progress("1 / 10430 [>] 0.01 % 1.28/s 136m"),
+            Some((1, 10430))
+        );
         assert_eq!(
             parse_agg_progress("10430 / 10430 [=====] 100.00 % 7.0/s 0m"),
             Some((10430, 10430))
