@@ -71,6 +71,14 @@ case "${OS}-${ARCH}" in
   *) echo "unsupported platform: $OS/$ARCH" >&2; exit 1 ;;
 esac
 
+# Windows binaries carry a `.exe` suffix, and Tauri's externalBin bundling looks
+# the sidecars up on disk by that exact name (sidecars/<name>-<triple>.exe), so
+# the staged filenames must include it.
+case "$OS" in
+  windows) EXE=".exe" ;;
+  *)       EXE="" ;;
+esac
+
 echo "Fetching sidecars for $TRIPLE ..."
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -116,10 +124,10 @@ verify_sha256() {
 
 fetch_agg() {
   local triple="$1"
-  local out_bin="$SIDEARS_DIR/agg-${triple}"
+  local out_bin="$SIDEARS_DIR/agg-${triple}${EXE}"
 
   # Try the single-binary release artifact first (newer agg releases).
-  local url="${AGG_BASE_URL}/agg-${triple}"
+  local url="${AGG_BASE_URL}/agg-${triple}${EXE}"
   echo "  agg: $url"
   if download "$url" "$out_bin"; then
     chmod +x "$out_bin" 2>/dev/null || true
@@ -134,14 +142,14 @@ fetch_agg() {
   echo "  agg (fallback archive): $url"
   download "$url" "$tmp/agg.tar.gz"
   tar -xzf "$tmp/agg.tar.gz" -C "$tmp"
-  # The archive usually contains a single `agg` binary.
-  find "$tmp" -name agg -type f -exec cp {} "$out_bin" \;
+  # The archive usually contains a single `agg`/`agg.exe` binary.
+  find "$tmp" \( -name agg -o -name agg.exe \) -type f -exec cp {} "$out_bin" \;
   chmod +x "$out_bin"
 }
 
 fetch_ffmpeg() {
   local triple="$1"
-  local out_bin="$SIDEARS_DIR/ffmpeg-${triple}"
+  local out_bin="$SIDEARS_DIR/ffmpeg-${triple}${EXE}"
 
   local url=""
   case "$triple" in
@@ -211,8 +219,8 @@ fetch_ffmpeg "$TRIPLE" || {
 # ─────────────────────────────────────────────────────────────────────────────
 # Health check + attribution stub
 # ─────────────────────────────────────────────────────────────────────────────
-AGG_OUT="$SIDEARS_DIR/agg-${TRIPLE}"
-FFMPEG_OUT="$SIDEARS_DIR/ffmpeg-${TRIPLE}"
+AGG_OUT="$SIDEARS_DIR/agg-${TRIPLE}${EXE}"
+FFMPEG_OUT="$SIDEARS_DIR/ffmpeg-${TRIPLE}${EXE}"
 
 echo "Staged:"
 ls -lh "$AGG_OUT" "$FFMPEG_OUT"

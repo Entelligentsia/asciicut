@@ -104,7 +104,6 @@ SAMPLE_CAST="$REPO_ROOT/samples/sample.cast"
 log "Launching packaged binary with $SAMPLE_CAST under $DISPLAY_NUM ..."
 DISPLAY="$DISPLAY_NUM" "$BIN" "$SAMPLE_CAST" >"$SCRATCH/app.log" 2>&1 &
 APP_PID=$!
-sleep 3
 
 cleanup_app() {
   kill "$APP_PID" >/dev/null 2>&1 || true
@@ -112,19 +111,35 @@ cleanup_app() {
   kill "$XVFB_PID" >/dev/null 2>&1 || true
 }
 
-if ! kill -0 "$APP_PID" 2>/dev/null; then
-  echo "ERROR: packaged binary exited early. Log:" >&2
-  cat "$SCRATCH/app.log" >&2
-  cleanup_app
-  exit 1
-fi
+# Poll for the titled window rather than checking once: webview window init
+# under headless Xvfb takes noticeably longer on a shared CI runner than on a
+# dev box, and the window first appears with its binary-name placeholder before
+# the configured title is applied. Wait up to ~30s, re-checking each second and
+# bailing early if the process dies.
+WIN_INFO=""
+WIN_OK=0
+for _ in $(seq 1 30); do
+  if ! kill -0 "$APP_PID" 2>/dev/null; then
+    echo "ERROR: packaged binary exited early. Log:" >&2
+    cat "$SCRATCH/app.log" >&2
+    cleanup_app
+    exit 1
+  fi
+  WIN_INFO="$(DISPLAY="$DISPLAY_NUM" xwininfo -root -tree 2>/dev/null || true)"
+  if echo "$WIN_INFO" | grep -q 'asciicut — the cutting room'; then
+    WIN_OK=1
+    break
+  fi
+  sleep 1
+done
 
-WIN_INFO="$(DISPLAY="$DISPLAY_NUM" xwininfo -root -tree 2>/dev/null || true)"
-if echo "$WIN_INFO" | grep -q 'asciicut — the cutting room'; then
+if [ "$WIN_OK" = 1 ]; then
   log "Native window confirmed: asciicut — the cutting room"
 else
-  echo "ERROR: expected window title not found. xwininfo output:" >&2
+  echo "ERROR: expected window title not found after ~30s. xwininfo output:" >&2
   echo "$WIN_INFO" >&2
+  echo "--- app.log ---" >&2
+  cat "$SCRATCH/app.log" >&2
   cleanup_app
   exit 1
 fi
